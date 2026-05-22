@@ -1,0 +1,57 @@
+# mischar-detector configuration
+# Copy this to config.yaml and edit for your environment.
+
+# Paths
+data_dir: ./data
+cache_dir: ./cache
+artifacts_dir: ./artifacts
+eval_runs_dir: ./eval_runs
+
+# Models — which backend to use for each pipeline role
+attribution_model: gemma27b-prompted # or 'gemini-3.1-pro'
+classifier_model: gemma27b-tuned # which model the CLI/pipeline uses by default
+attribution_fallback: gemini-3.1-pro # for hard attribution cases
+
+models:
+  gemma27b-prompted:
+    backend: ollama
+    ollama_model: gemma3:27b
+  gemma27b-tuned:
+    backend: mlx
+    base_model_path: mlx-community/gemma-3-27b-it-4bit
+    adapter_path: ./artifacts/adapters/gemma3-27b-mischar-v1
+  gemma12b-tuned:
+    backend: mlx
+    base_model_path: mlx-community/gemma-3-12b-it-4bit
+    adapter_path: ./artifacts/adapters/gemma3-12b-mischar-v1
+  gemini-3.1-pro:
+    backend: gemini
+    api_model: gemini-3.1-pro
+
+# Retrieval
+chunk_max_tokens: 1200
+chunk_overlap_paragraphs: 1
+top_k: 5
+pincite_boost: 0.15
+pincite_neighbor_window: 2
+
+# Embedding
+embedding_model: voyage-law-2
+
+# CourtListener
+courtlistener_base_url: https://www.courtlistener.com/api/rest/v3/
+courtlistener_rate_limit_per_minute: 60
+courtlistener_max_retries: 5
+
+# LLM generation
+generation_temperature: 0.0
+generation_max_tokens: 1024
+llm_timeout_seconds: 120
+
+# Prompt versions — bump when prompt content changes
+attribution_prompt_version: v1.0
+classification_prompt_version: v1.0
+
+# Logging
+log_level: INFO
+log_rotation_days: 30
