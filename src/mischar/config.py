@@ -46,12 +46,16 @@ class ModelConfig(BaseModel):
     # Gemini fields
     api_model: str | None = None
 
+    # This project uses three backends: ollama, mlx, and gemini. This function
+    # ensures that there is no attempt to use a backend other than these three
     @field_validator("backend")
     @classmethod
     def validate_backend(cls, v: str) -> str:
         allowed = {"ollama", "mlx", "gemini"}
+
         if v not in allowed:
             raise ValueError(f"backend must be one of {allowed}, got '{v}'")
+        
         return v
 
 
@@ -66,7 +70,8 @@ class Config(BaseModel):
     Loaded from ``config.yaml``, validated by pydantic, and then treated
     as read-only for the lifetime of a run.
     """
-
+    # Makes every instance immutable after creation, preventing accidental
+    # mutation during a pipeline run
     model_config = {"frozen": True}
 
     # Paths
@@ -142,8 +147,10 @@ def load_config(path: Path | str = "config.yaml") -> Config:
         raise FileNotFoundError(f"Config file not found: {path}")
 
     with open(path) as f:
-        raw: dict[str, Any] = yaml.safe_load(f) or {}
-
+        # Convert YAML file to Python dictionary and handle edge case where YAML 
+        # file is empty
+        raw: dict[str, Any] = yaml.safe_load(f) or {} 
+    # Unpack the dictionary as keywords in the Pydantic model
     return Config(**raw)
 
 
