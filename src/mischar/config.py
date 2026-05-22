@@ -1,11 +1,11 @@
-"""Configuration loading and validation.
+"""
+Configuration loading and validation.
 
 Loads ``config.yaml`` into a validated ``Config`` dataclass. Secrets are loaded
 separately from ``.env`` via python-dotenv.
 """
 
 from __future__ import annotations
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -65,7 +65,8 @@ class ModelConfig(BaseModel):
 
 
 class Config(BaseModel):
-    """Top-level application configuration.
+    """
+    Top-level application configuration.
 
     Loaded from ``config.yaml``, validated by pydantic, and then treated
     as read-only for the lifetime of a run.
@@ -137,7 +138,8 @@ class Secrets:
 
 
 def load_config(path: Path | str = "config.yaml") -> Config:
-    """Load and validate configuration from a YAML file.
+    """
+    Load and validate configuration from a YAML file.
 
     Raises ``FileNotFoundError`` if the config file is missing and
     ``pydantic.ValidationError`` if the content is invalid.
@@ -150,12 +152,14 @@ def load_config(path: Path | str = "config.yaml") -> Config:
         # Convert YAML file to Python dictionary and handle edge case where YAML 
         # file is empty
         raw: dict[str, Any] = yaml.safe_load(f) or {} 
+        
     # Unpack the dictionary as keywords in the Pydantic model
     return Config(**raw)
 
 
 def load_secrets() -> Secrets:
-    """Load API keys from environment variables (expected via ``.env``).
+    """
+    Load API keys from environment variables (expected via ``.env``).
 
     Call ``dotenv.load_dotenv()`` before invoking this function.
 

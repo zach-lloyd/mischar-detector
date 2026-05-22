@@ -1,4 +1,5 @@
-"""mischar — Legal Citation Mischaracterization Detector.
+"""
+mischar — Legal Citation Mischaracterization Detector.
 
 A five-stage classification pipeline (parse → resolve → attribute → retrieve →
 classify) that detects when legal briefs mischaracterize the holdings of cited

@@ -1,4 +1,5 @@
-"""Constants for the mischaracterization detector pipeline.
+"""
+Constants for the mischaracterization detector pipeline.
 
 Defines label enums, abstention reason codes, disclaimer text, and version strings
 used throughout the library.
@@ -38,7 +39,8 @@ class Label(StrEnum):
 
 
 class AbstentionReason(StrEnum):
-    """Reason codes for pipeline abstentions.
+    """
+    Reason codes for pipeline abstentions.
 
     These represent conditions where a meaningful verdict cannot be produced
     even with perfect infrastructure — they are part of the pipeline's contract,

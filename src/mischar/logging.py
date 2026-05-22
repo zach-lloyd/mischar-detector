@@ -1,4 +1,5 @@
-"""Structured logging configuration.
+"""
+Structured logging configuration.
 
 Configures structlog with JSON output for machine readability and a
 human-friendly console renderer for development.
@@ -12,7 +13,8 @@ import structlog
 
 
 def configure_logging(level: str = "INFO") -> None:
-    """Set up structlog with the given log level to produce structured key-value
+    """
+    Set up structlog with the given log level to produce structured key-value
     log output instead of plain strings.
 
     Call once at application startup (CLI entrypoint or evaluation runner).
@@ -45,6 +47,8 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    """Return a named logger instance. Each module calls log = get_logger("stage_name") 
-    so you can tell which part of the pipeline produced each log line."""
+    """
+    Return a named logger instance. Each module calls log = get_logger("stage_name") 
+    so you can tell which part of the pipeline produced each log line.
+    """
     return structlog.get_logger(name)

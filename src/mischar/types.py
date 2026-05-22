@@ -1,4 +1,5 @@
-"""Core domain types for the mischaracterization detector pipeline.
+"""
+Core domain types for the mischaracterization detector pipeline.
 
 All cross-cutting data structures live here so that stages, models, eval, and
 CLI modules can import from a single location without circular dependencies.
@@ -28,7 +29,8 @@ class Pincite:
 
 @dataclass
 class ParsedCitation:
-    """A citation extracted from a passage by eyecite.
+    """
+    A citation extracted from a passage by eyecite.
 
     Carries the raw text, parsed components, and character-level position
     within the source passage.
@@ -123,7 +125,8 @@ class Classification:
 
 @dataclass
 class Abstention:
-    """Indicates the pipeline cannot produce a verdict for this citation.
+    """
+    Indicates the pipeline cannot produce a verdict for this citation.
 
     Abstentions are part of the pipeline's contract — they represent conditions
     where no meaningful classification is possible, distinct from infrastructure
@@ -147,7 +150,8 @@ class Abstention:
 
 @dataclass
 class CitationResult:
-    """The pipeline's complete output for a single citation.
+    """
+    The pipeline's complete output for a single citation.
 
     Invariant: exactly one of ``classification`` or ``abstention`` is non-None.
     """

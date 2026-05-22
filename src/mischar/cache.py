@@ -1,4 +1,5 @@
-"""Content-addressed caching layer backed by diskcache.
+"""
+Content-addressed caching layer backed by diskcache.
 
 Wraps ``diskcache.Cache`` (SQLite-backed) with per-stage namespacing and
 content-addressed key generation. Every cached value is keyed by a hash of its
@@ -24,7 +25,8 @@ log = get_logger("cache")
 
 
 class Cache:
-    """Persistent, content-addressed cache backed by SQLite.
+    """
+    Persistent, content-addressed cache backed by SQLite.
 
     Keys are namespaced by pipeline stage (``resolve``, ``attribute``, etc.)
     so stages can be cleared independently.  Values are pickled by diskcache.
@@ -33,8 +35,11 @@ class Cache:
         path: Directory for the diskcache database.
         enabled: If False, all reads return None and writes are no-ops.
             Supports the ``--no-cache`` CLI flag.
+    
+    '*' forces everything after it to be passed as a keyword argument, so 
+    Cache("/path/to/cache", enabled=False) works but Cache("/path/to/cache", False)
+    does not. This guards against positional argument mistakes.
     """
-
     def __init__(self, path: str | Path, *, enabled: bool = True) -> None:
         self._enabled = enabled
         self._path = Path(path)
@@ -56,7 +61,8 @@ class Cache:
     # ------------------------------------------------------------------
 
     def get(self, stage: str, key: str) -> Any | None:
-        """Retrieve a cached value, or None on miss / error.
+        """
+        Retrieve a cached value, or None on miss / error.
 
         Args:
             stage: Pipeline stage name (e.g. ``"resolve"``).
@@ -87,7 +93,8 @@ class Cache:
             return None
 
     def set(self, stage: str, key: str, value: Any) -> None:
-        """Store a value in the cache.
+        """
+        Store a value in the cache.
 
         Args:
             stage: Pipeline stage name.
@@ -108,7 +115,8 @@ class Cache:
             log.warning("cache_write_error", stage=stage, key=key[:16], exc_info=True)
 
     def clear(self, stage: str | None = None) -> None:
-        """Clear cached entries.
+        """
+        Clear cached entries.
 
         Args:
             stage: If provided, only entries for that stage are removed.
@@ -141,7 +149,8 @@ class Cache:
 
     @staticmethod
     def make_key(*parts: Any) -> str:
-        """Build a content-addressed cache key by hashing input parts.
+        """
+        Build a content-addressed cache key by hashing input parts.
 
         Each part is serialized to a stable string representation, then the
         concatenation is SHA-256 hashed.  For LLM calls, parts should include
@@ -150,6 +159,8 @@ class Cache:
 
         Args:
             *parts: Hashable components (strings, ints, floats, dicts, lists).
+                    '*' means all positional arguments are collected into a tuple, so
+                    any number of arguments can be passed in.
 
         Returns:
             A 64-character hex digest string.
@@ -186,7 +197,8 @@ class Cache:
 
     @staticmethod
     def _full_key(stage: str, key: str) -> str:
-        """Namespace a key by stage.
+        """
+        Namespace a key by stage.
 
         "resolve" + "abc123" becomes "resolve:abc123", ensuring that
         two stages using the same content key don't collide.
@@ -195,7 +207,8 @@ class Cache:
 
 
 def _stable_serialize(value: Any) -> str:
-    """Convert a value to a stable string representation for hashing.
+    """
+    Convert a value to a stable string representation for hashing.
 
     The key requirement is *determinism*: the same logical value must always
     produce the same string, regardless of insertion order (for dicts) or
