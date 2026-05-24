@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# mischar-detector project-specific
+config.yaml
+cache/
+data/raw/
+data/processed/
+artifacts/
+eval_runs/

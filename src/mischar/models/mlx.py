@@ -89,6 +89,7 @@ class MLXClient:
 
         log.info("mlx_model_loaded", name=self.name)
 
+
     def generate(
         self,
         prompt: str,
@@ -130,6 +131,7 @@ class MLXClient:
                 f"{prompt}\n\nRespond with a JSON object. "
                 f"Do not include any text outside the JSON object."
             )
+
 
         def _call() -> str:
             """

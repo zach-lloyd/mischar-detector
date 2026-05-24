@@ -47,6 +47,7 @@ class ModelClient(Protocol):
 
     name: str
 
+
     def generate(
         self,
         prompt: str,

@@ -61,6 +61,7 @@ class GeminiClient:
 
         log.info("gemini_client_initialized", model=model)
 
+
     def generate(
         self,
         prompt: str,
@@ -99,6 +100,7 @@ class GeminiClient:
         # constrain its response to valid JSON.
         if json_schema is not None:
             gen_config.response_mime_type = "application/json"
+
 
         def _call():
             """

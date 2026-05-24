@@ -92,6 +92,7 @@ class Cache:
 
             return None
 
+
     def set(self, stage: str, key: str, value: Any) -> None:
         """
         Store a value in the cache.
@@ -113,6 +114,7 @@ class Cache:
             # Disk full, permissions error, etc. — log and move on.
             # The pipeline will just redo this work next time.
             log.warning("cache_write_error", stage=stage, key=key[:16], exc_info=True)
+
 
     def clear(self, stage: str | None = None) -> None:
         """
@@ -146,6 +148,7 @@ class Cache:
                 log.info("cache_cleared_stage", stage=stage, count=len(keys_to_delete))
         except Exception:
             log.warning("cache_clear_error", stage=stage, exc_info=True)
+
 
     @staticmethod
     def make_key(*parts: Any) -> str:
@@ -184,6 +187,7 @@ class Cache:
             hasher.update(serialized.encode("utf-8"))
 
         return hasher.hexdigest()
+
 
     def close(self) -> None:
         """Close the underlying diskcache database."""

@@ -56,6 +56,7 @@ class OllamaClient:
             base_url=self._base_url,
         )
 
+
     def generate(
         self,
         prompt: str,
@@ -99,6 +100,7 @@ class OllamaClient:
         # the schema structure.
         if json_schema is not None:
             payload["format"] = json_schema
+
 
         def _call() -> httpx.Response:
             """
@@ -158,6 +160,7 @@ class OllamaClient:
                 "eval_count": data.get("eval_count"),
             },
         )
+
 
     def close(self) -> None:
         """Close the underlying HTTP client."""
