@@ -121,6 +121,7 @@ def classify(
     # Extract and validate the label.
     raw_label = result.get("label", "").lower().strip()
     valid_labels = Label.values()
+
     if raw_label not in valid_labels:
         log.warning(
             "classify_invalid_label",
@@ -129,10 +130,11 @@ def classify(
         )
         # Default to "unrelated" with low confidence for invalid labels.
         raw_label = "unrelated"
-
-    confidence = float(result.get("confidence", 0.5))
-    # Clamp confidence to [0, 1].
-    confidence = max(0.0, min(1.0, confidence))
+        confidence = 0.1
+    else:
+        confidence = float(result.get("confidence", 0.5))
+        # Clamp confidence to [0, 1].
+        confidence = max(0.0, min(1.0, confidence))
 
     supporting_text = result.get("supporting_text", "")
 
