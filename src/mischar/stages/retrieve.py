@@ -7,9 +7,7 @@ a case opinion and a claim, it:
 1. Chunks the opinion into paragraph-grouped segments.
 2. Embeds each chunk and the claim via Voyage's voyage-law-2 model.
 3. Ranks chunks by cosine similarity to the claim.
-4. Applies pincite boosting: if the citation included a specific page
-   reference, chunks near that location get a similarity boost.
-5. Returns the top-K most relevant chunks for the classifier.
+4. Returns the top-K most relevant chunks for the classifier.
 
 This stage is what makes the classifier tractable — instead of feeding
 a 50-page opinion to the LLM, we feed it the 5 most relevant chunks.
@@ -26,7 +24,6 @@ from mischar.types import (
     Chunk,
     ChunkEmbedding,
     Embedding,
-    Pincite,
     RetrievalResult,
 )
 
@@ -88,7 +85,7 @@ def chunk_opinion(
 
             # If adding this paragraph would exceed the limit and we
             # already have at least one paragraph, stop here. If we do not 
-            # already have at least one paragraph, at just this paragraph as its
+            # already have at least one paragraph, add just this paragraph as its
             # own oversized chunk. Given that voyage-law-2 has a 16k token context
             # window, it is highly unlikely that any single paragraph will be too
             # long to be its own chunk.
@@ -225,22 +222,13 @@ def embed_claim(claim: str, client: EmbeddingClient, cache: Cache) -> Embedding:
 def retrieve_top_k(
     claim_embedding: Embedding,
     chunk_embeddings: list[ChunkEmbedding],
-    pincite: Pincite | None,
-    k: int = 5,
-    pincite_boost: float = 0.15,
-    pincite_neighbor_window: int = 2,
+    k: int = 5
 ) -> RetrievalResult:
     """
     Select the top-K most relevant chunks for a claim.
 
-    Computes cosine similarity between the claim and each chunk, applies
-    pincite boosting if applicable, and returns the top-K chunks.
-
-    Pincite boosting: if the citation included a specific page reference
-    (e.g. "at 462"), we estimate which chunk contains that page and boost
-    its similarity score (and its neighbors') by ``pincite_boost``. This
-    encodes the intuition that the citing attorney pointed at a specific
-    page for a reason.
+    Computes cosine similarity between the claim and each chunk and returns the 
+    top-K chunks.
 
     Fallback: if the opinion has fewer than 3 chunks, we return all
     chunks rather than selecting top-K — the opinion is short enough
@@ -249,16 +237,10 @@ def retrieve_top_k(
     Args:
         claim_embedding: The embedded claim vector.
         chunk_embeddings: Embedded chunks from the opinion.
-        pincite: Pincite from the citation, if present.
         k: Number of top chunks to return.
-        pincite_boost: Additive boost to similarity scores for chunks
-            near the pincite location.
-        pincite_neighbor_window: How many chunks on either side of the
-            estimated pincite chunk also get boosted.
 
     Returns:
-        A ``RetrievalResult`` with the selected chunks, their scores,
-        and the index of the pincite chunk (if applicable).
+        A ``RetrievalResult`` with the selected chunks and their scores.
     """
     n_chunks = len(chunk_embeddings)
 
@@ -270,7 +252,6 @@ def retrieve_top_k(
         return RetrievalResult(
             chunks=[ce.chunk for ce in chunk_embeddings],
             scores=[1.0] * n_chunks,
-            pincite_chunk_index=None,
         )
 
     # Compute cosine similarity between the claim and each chunk.
@@ -280,32 +261,6 @@ def retrieve_top_k(
         chunk_vec = np.array(ce.embedding)
         similarity = _cosine_similarity(claim_vec, chunk_vec)
         scores.append(similarity)
-
-    # Apply pincite boosting if a pincite is present.
-    pincite_chunk_idx = None
-    if pincite is not None:
-        # Estimate which chunk contains the pincite page using
-        # proportional position within the opinion.
-        pincite_chunk_idx = _estimate_pincite_chunk(
-            pincite, chunk_embeddings
-        )
-
-        if pincite_chunk_idx is not None:
-            # Boost the pincite chunk and its neighbors within the window.
-            for i in range(n_chunks):
-                distance = abs(i - pincite_chunk_idx)
-                if distance <= pincite_neighbor_window:
-                    # Full boost for the pincite chunk, tapering for neighbors.
-                    # Distance 0 (pincite chunk) gets full boost.
-                    # Distance 1 gets 2/3 boost, distance 2 gets 1/3 boost, etc.
-                    taper = 1.0 - (distance / (pincite_neighbor_window + 1))
-                    scores[i] += pincite_boost * taper
-
-            log.debug(
-                "pincite_boost_applied",
-                pincite_chunk=pincite_chunk_idx,
-                window=pincite_neighbor_window,
-            )
 
     # Select the top-K chunks by (boosted) score.
     # argsort returns ascending order; we want descending, so negate or reverse.
@@ -319,25 +274,16 @@ def retrieve_top_k(
     selected_chunks = [chunk_embeddings[i].chunk for i in top_indices]
     selected_scores = [scores[i] for i in top_indices]
 
-    # If the pincite chunk was identified, find its position in the
-    # selected results (it might not be in top-K if scores were low,
-    # but the boost should usually ensure it's included).
-    result_pincite_idx = None
-    if pincite_chunk_idx is not None and pincite_chunk_idx in top_indices:
-        result_pincite_idx = list(top_indices).index(pincite_chunk_idx)
-
     log.info(
         "retrieve_complete",
         k=k,
         n_chunks=n_chunks,
         top_scores=[round(s, 3) for s in selected_scores],
-        has_pincite=pincite is not None,
     )
 
     return RetrievalResult(
         chunks=selected_chunks,
         scores=selected_scores,
-        pincite_chunk_index=result_pincite_idx,
     )
 
 
@@ -385,63 +331,3 @@ def _estimate_tokens(text: str) -> int:
         token.
     """
     return max(1, len(text) // 4)
-
-
-def _estimate_pincite_chunk(
-    pincite: Pincite,
-    chunk_embeddings: list[ChunkEmbedding],
-) -> int | None:
-    """
-    Estimate which chunk contains the pincite page.
-
-    Since CourtListener text typically doesn't include page break markers,
-    we use proportional position: if the opinion starts at page X and is
-    N characters long, page Y is approximately at position
-    (Y - X) / estimated_pages * N.
-
-    This is inherently approximate — the pincite_neighbor_window in the
-    boosting logic accounts for the imprecision.
-
-    Args:
-        pincite: The pincite page.
-        chunk_embeddings: List of embedded opinion chunks.
-
-    Returns: 
-        The estimated chunk index, or None if estimation fails.
-    """
-    if not chunk_embeddings:
-        return None
-
-    n_chunks = len(chunk_embeddings)
-
-    # Simple proportional estimate: assume the pincite page number
-    # maps to a proportional position in the text. This is very rough
-    # but combined with the neighbor window, it's good enough.
-    #
-    # We don't have the starting page number, so we estimate based on
-    # the pincite page's position relative to the total text length.
-    # A more sophisticated approach would parse the starting page from
-    # the citation, but that adds complexity for marginal benefit.
-
-    # For now, use a simple heuristic: distribute chunks evenly and
-    # place the pincite proportionally. This will be refined when we
-    # have real CourtListener data to test against.
-    total_chars = sum(len(ce.chunk.text) for ce in chunk_embeddings)
-    if total_chars == 0:
-        return None
-
-    # Estimate: pincite is somewhere in the document. Without the
-    # starting page, we guess the middle third of the document as
-    # the most likely location for a pincite (most holdings are
-    # in the analysis section, not the facts or procedural history).
-    # This is a placeholder — see handoff notes.
-    estimated_position = min(n_chunks - 1, max(0, n_chunks // 3))
-
-    log.debug(
-        "pincite_estimate",
-        pincite_page=pincite.page_number,
-        estimated_chunk=estimated_position,
-        n_chunks=n_chunks,
-    )
-
-    return estimated_position

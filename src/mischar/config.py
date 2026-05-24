@@ -21,8 +21,6 @@ from mischar.constants import (
     DEFAULT_GENERATION_MAX_TOKENS,
     DEFAULT_GENERATION_TEMPERATURE,
     DEFAULT_LLM_TIMEOUT_SECONDS,
-    DEFAULT_PINCITE_BOOST,
-    DEFAULT_PINCITE_NEIGHBOR_WINDOW,
     DEFAULT_TOP_K,
 )
 
@@ -93,8 +91,6 @@ class Config(BaseModel):
     chunk_max_tokens: int = DEFAULT_CHUNK_MAX_TOKENS
     chunk_overlap_paragraphs: int = DEFAULT_CHUNK_OVERLAP_PARAGRAPHS
     top_k: int = DEFAULT_TOP_K
-    pincite_boost: float = DEFAULT_PINCITE_BOOST
-    pincite_neighbor_window: int = DEFAULT_PINCITE_NEIGHBOR_WINDOW
 
     # Embedding
     embedding_model: str = "voyage-law-2"

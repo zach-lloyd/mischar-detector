@@ -1,4 +1,5 @@
-"""Stage 5: Classification via LLM.
+"""
+Stage 5: Classification via LLM.
 
 The final pipeline stage. Given a claim (from attribution) and relevant
 case excerpts (from retrieval), the classifier determines whether the
@@ -33,7 +34,8 @@ def classify(
     cache: Cache,
     prompt_version: str,
 ) -> Classification:
-    """Classify the relationship between a claim and cited case text.
+    """
+    Classify the relationship between a claim and cited case text.
 
     Builds a prompt from the claim and retrieved chunks, calls the LLM
     with structured JSON output, and parses the result into a
@@ -66,6 +68,7 @@ def classify(
     cached = cache.get("classify", cache_key)
     if cached is not None:
         log.debug("classify_cache_hit", case=case.case_name)
+
         return cached
 
     # Concatenate retrieved chunks into a single context block,
@@ -98,8 +101,8 @@ def classify(
         result = _call_and_parse(stricter_prompt, client)
 
     # If still no valid result, fall back to a low-confidence "unrelated"
-    # classification with a logged warning (per blueprint error handling).
-    # This is a last resort — structured output mode should prevent it.
+    # classification with a logged warning. This is a last resort — structured 
+    # output mode should prevent it.
     if result is None:
         log.error(
             "classify_fallback",
@@ -112,6 +115,7 @@ def classify(
             supporting_text="Classification failed — model returned malformed output.",
         )
         cache.set("classify", cache_key, classification)
+
         return classification
 
     # Extract and validate the label.
@@ -146,6 +150,7 @@ def classify(
         label=raw_label,
         confidence=round(confidence, 3),
     )
+
     return classification
 
 
@@ -155,10 +160,17 @@ def classify(
 
 
 def _format_retrieved_chunks(retrieval: RetrievalResult) -> str:
-    """Format retrieved chunks into a single text block for the prompt.
+    """
+    Format retrieved chunks into a single text block for the prompt.
 
     Each chunk is labeled with its index and relevance score so the
     model has context about which parts are most relevant.
+
+    Args:
+        retrieval: The retrieved chunks.
+    
+    Returns:
+        The retrieved chunks formatted as a string.
     """
     parts = []
     for i, (chunk, _score) in enumerate(
@@ -166,20 +178,21 @@ def _format_retrieved_chunks(retrieval: RetrievalResult) -> str:
     ):
         header = f"[Excerpt {i + 1}]"
 
-        # Mark the pincite chunk if present, so the model knows which
-        # excerpt corresponds to the specific page cited.
-        if retrieval.pincite_chunk_index is not None and i == retrieval.pincite_chunk_index:
-            header += " (cited page)"
-
         parts.append(f"{header}\n{chunk.text}")
 
     return "\n\n---\n\n".join(parts)
 
 
 def _call_and_parse(prompt: str, client: ModelClient) -> dict | None:
-    """Call the model and parse the JSON response.
+    """
+    Call the model and parse the JSON response.
 
-    Returns the parsed dict, or None if the response isn't valid JSON.
+    Args:
+        prompt: The claim and the cited chunks for classification.
+        client: The LLM model to be called.
+
+    Returns:
+        The parsed dict, or None if the response isn't valid JSON.
     """
     try:
         response = client.generate(
@@ -187,7 +200,9 @@ def _call_and_parse(prompt: str, client: ModelClient) -> dict | None:
             json_schema=CLASSIFICATION_JSON_SCHEMA,
             temperature=0.0,
         )
+
         return response.parsed_json
     except Exception:
         log.warning("classify_model_error", exc_info=True)
+
         return None

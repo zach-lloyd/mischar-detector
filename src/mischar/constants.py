@@ -95,12 +95,6 @@ DISCLAIMER = (
 DEFAULT_CHUNK_MAX_TOKENS = 1200
 DEFAULT_CHUNK_OVERLAP_PARAGRAPHS = 1
 DEFAULT_TOP_K = 5
-# When there is a cite to a specific page, boost the value of the chunk containing
-# that page, as well as neighboring chunks. However, note that this will be 
-# inherently somewhat fuzzy because we have to estimate where the cited page falls
-# in the chunks
-DEFAULT_PINCITE_BOOST = 0.15
-DEFAULT_PINCITE_NEIGHBOR_WINDOW = 2
 # Controls randomness of LLM output. Set to 0.0 so the model will be fully
 # deterministic and always predict the highest probability token
 DEFAULT_GENERATION_TEMPERATURE = 0.0

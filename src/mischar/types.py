@@ -106,7 +106,6 @@ class RetrievalResult:
 
     chunks: list[Chunk]
     scores: list[float]
-    pincite_chunk_index: int | None = None  # index into self.chunks if pincite chunk present
 
 
 # ---------------------------------------------------------------------------
@@ -164,13 +163,15 @@ class CitationResult:
     abstention: Abstention | None
     model_used: str
     pipeline_version: str = field(default=PIPELINE_VERSION)
-    timestamp: datetime = field(default_factory=datetime.now(UTC))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+
 
     @property
     def abstained(self) -> bool:
         """True if the pipeline abstained rather than classifying."""
         
         return self.abstention is not None
+
 
     def __post_init__(self) -> None:
         has_class = self.classification is not None

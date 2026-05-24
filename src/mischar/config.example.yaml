@@ -32,8 +32,6 @@ models:
 chunk_max_tokens: 1200
 chunk_overlap_paragraphs: 1
 top_k: 5
-pincite_boost: 0.15
-pincite_neighbor_window: 2
 
 # Embedding
 embedding_model: voyage-law-2
