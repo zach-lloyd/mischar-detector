@@ -110,7 +110,7 @@ def chunk_opinion(
         # Advance to the next chunk, overlapping by the specified number
         # of paragraphs. This means the last N paragraphs of this chunk
         # become the first N paragraphs of the next chunk.
-        para_start = max(para_end - overlap_paragraphs, para_end)
+        para_start = para_end - overlap_paragraphs
 
         # Safety: if overlap would cause us to not advance at all
         # (single very long paragraph), force advancement.
