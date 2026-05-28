@@ -6,14 +6,14 @@ for the deployability story. The 12B model trains faster and requires less
 memory, making it suitable for validating the training pipeline before
 committing to the more expensive 27B run.
 
-Ideally run the 12B first: if it converges poorly or shows degenerate output, 
+Ideally run the 12B first: if it converges poorly or shows degenerate output,
 that's a signal to revisit hyperparameters before kicking off the 27B run.
 
 Training data format is identical to the primary — same JSONL files with
 ``prompt`` and ``completion`` fields.
 
 Usage:
-    modal run scripts/training/train_secondary.py
+    modal run src/mischar/scripts/training/train_secondary.py
 """
 
 from __future__ import annotations
@@ -24,17 +24,59 @@ from pathlib import Path
 
 import modal
 
-from scripts.training.modal_app import (
-    ADAPTER_OUTPUT_PATH,
-    GPU_COUNT,
-    GPU_TYPE,
-    TRAINING_DATA_PATH,
-    TRAINING_TIMEOUT_SECONDS,
-    adapter_volume,
-    app,
-    image,
-    training_data_volume,
+# ---------------------------------------------------------------------------
+# Modal infrastructure (app, image, volumes, GPU config)
+#
+# These are defined inline rather than imported from a shared module because
+# Modal copies each script into the container at /root/<script>.py, detached
+# from the local directory structure. Cross-file imports break inside the
+# container regardless of how they're written (absolute, relative, sys.path).
+# Inlining ~50 lines is the simplest way to keep each script self-contained.
+# ---------------------------------------------------------------------------
+
+app = modal.App("mischar-training")
+
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install(
+        "torch>=2.4",
+        "transformers>=4.46",
+        "peft>=0.13",
+        "trl>=0.12",
+        "bitsandbytes>=0.44",
+        "accelerate>=1.0",
+        "datasets>=3.0",
+        "scikit-learn>=1.4",
+        "numpy>=1.26",
+        "pyyaml>=6.0",
+        # sentencepiece / protobuf needed for Gemma tokenizer
+        "sentencepiece",
+        "protobuf",
+    )
 )
+
+# Training data (JSONL files uploaded before training).
+training_data_volume = modal.Volume.from_name(
+    "mischar-training-data",
+    create_if_missing=True,
+)
+
+# Adapter outputs. User pulls these to local artifacts/adapters/ afterward.
+adapter_volume = modal.Volume.from_name(
+    "mischar-adapters",
+    create_if_missing=True,
+)
+
+# Volume mount paths (inside the container)
+TRAINING_DATA_PATH = "/data"
+ADAPTER_OUTPUT_PATH = "/adapters"
+
+# H100 80GB is the target; A100 80GB is the fallback.
+GPU_TYPE = "H100"
+GPU_COUNT = 1
+
+# 6 hours gives comfortable headroom.
+TRAINING_TIMEOUT_SECONDS = 6 * 60 * 60
 
 # ---------------------------------------------------------------------------
 # Constants — overrides from the primary entrypoint
@@ -60,7 +102,7 @@ PER_DEVICE_TRAIN_BATCH = 4
 GRADIENT_ACCUMULATION_STEPS = 4
 WARMUP_RATIO = 0.03
 LR_SCHEDULER = "cosine"
-MAX_SEQ_LENGTH = 2048
+MAX_LENGTH = 2048
 EVAL_STEPS = 500
 SAVE_STEPS = 500
 LOGGING_STEPS = 50
@@ -68,7 +110,7 @@ EARLY_STOPPING_PATIENCE = 3
 
 
 # ---------------------------------------------------------------------------
-# Data loading — reuse the same helpers as primary
+# Data loading
 # ---------------------------------------------------------------------------
 
 
@@ -232,7 +274,6 @@ def train() -> str:
         token=hf_token,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
     )
 
     model.config.use_cache = False
@@ -277,7 +318,7 @@ def train() -> str:
         learning_rate=LEARNING_RATE,
         lr_scheduler_type=LR_SCHEDULER,
         warmup_ratio=WARMUP_RATIO,
-        max_seq_length=MAX_SEQ_LENGTH,
+        max_length=MAX_LENGTH,
         eval_strategy="steps",
         eval_steps=EVAL_STEPS,
         save_strategy="steps",
@@ -312,6 +353,7 @@ def train() -> str:
 
     # ----- 7. Save best adapter -----
 
+    # The best checkpoint by val loss is already loaded (load_best_model_at_end=True).
     best_adapter_path = os.path.join(output_dir, "best")
     trainer.save_model(best_adapter_path)
     tokenizer.save_pretrained(best_adapter_path)
@@ -343,7 +385,7 @@ def train() -> str:
 @app.local_entrypoint()
 def main() -> None:
     """
-    Local entrypoint for ``modal run scripts/training/train_secondary.py``.
+    Local entrypoint for ``modal run src/mischar/scripts/training/train_secondary.py``.
 
     Dispatches to the remote ``train`` function and prints the result.
     """

@@ -9,12 +9,8 @@ Training data format:
     - ``prompt``: The classification prompt (claim + retrieved case text).
     - ``completion``: The target JSON output (label, confidence, supporting_text).
 
-The script saves two adapter checkpoints to the adapter volume:
-    1. The final adapter after all epochs.
-    2. The best adapter by validation loss (from early stopping / checkpoint selection).
-
 Usage:
-    modal run scripts/training/train_primary.py
+    modal run src/mischar/scripts/training/train_primary.py
 """
 
 from __future__ import annotations
@@ -25,17 +21,59 @@ from pathlib import Path
 
 import modal
 
-from scripts.training.modal_app import (
-    ADAPTER_OUTPUT_PATH,
-    GPU_COUNT,
-    GPU_TYPE,
-    TRAINING_DATA_PATH,
-    TRAINING_TIMEOUT_SECONDS,
-    adapter_volume,
-    app,
-    image,
-    training_data_volume,
+# ---------------------------------------------------------------------------
+# Modal infrastructure (app, image, volumes, GPU config)
+#
+# These are defined inline rather than imported from a shared module because
+# Modal copies each script into the container at /root/<script>.py, detached
+# from the local directory structure. Cross-file imports break inside the
+# container regardless of how they're written (absolute, relative, sys.path).
+# Inlining ~50 lines is the simplest way to keep each script self-contained.
+# ---------------------------------------------------------------------------
+
+app = modal.App("mischar-training")
+
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install(
+        "torch>=2.4",
+        "transformers>=4.46",
+        "peft>=0.13",
+        "trl>=0.12",
+        "bitsandbytes>=0.44",
+        "accelerate>=1.0",
+        "datasets>=3.0",
+        "scikit-learn>=1.4",
+        "numpy>=1.26",
+        "pyyaml>=6.0",
+        # sentencepiece / protobuf needed for Gemma tokenizer
+        "sentencepiece",
+        "protobuf",
+    )
 )
+
+# Training data (JSONL files uploaded before training).
+training_data_volume = modal.Volume.from_name(
+    "mischar-training-data",
+    create_if_missing=True,
+)
+
+# Adapter outputs. User pulls these to local artifacts/adapters/ afterward.
+adapter_volume = modal.Volume.from_name(
+    "mischar-adapters",
+    create_if_missing=True,
+)
+
+# Volume mount paths (inside the container)
+TRAINING_DATA_PATH = "/data"
+ADAPTER_OUTPUT_PATH = "/adapters"
+
+# H100 80GB is the target; A100 80GB is the fallback.
+GPU_TYPE = "H100"
+GPU_COUNT = 1
+
+# 6 hours gives comfortable headroom for 27B QLoRA over ~10K examples.
+TRAINING_TIMEOUT_SECONDS = 6 * 60 * 60
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -63,7 +101,7 @@ PER_DEVICE_TRAIN_BATCH = 2
 GRADIENT_ACCUMULATION_STEPS = 8
 WARMUP_RATIO = 0.03  # 3% of total steps
 LR_SCHEDULER = "cosine"
-MAX_SEQ_LENGTH = 2048
+MAX_LENGTH = 2048
 EVAL_STEPS = 500
 SAVE_STEPS = 500
 LOGGING_STEPS = 50
@@ -204,7 +242,7 @@ def train() -> str:
     2. Applies LoRA adapters (rank 32, alpha 64, all linear layers).
     3. Loads training data from the data volume.
     4. Trains with TRL's SFTTrainer (cosine LR, warmup, early stopping).
-    5. Saves final and best-by-val-loss adapters to the adapter volume.
+    5. Saves the best adapter (by val loss) to the adapter volume.
 
     Returns:
         A summary string with training results.
@@ -259,7 +297,6 @@ def train() -> str:
         token=hf_token,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
     )
 
     # Disable caching during training — incompatible with gradient
@@ -306,7 +343,7 @@ def train() -> str:
         learning_rate=LEARNING_RATE,
         lr_scheduler_type=LR_SCHEDULER,
         warmup_ratio=WARMUP_RATIO,
-        max_seq_length=MAX_SEQ_LENGTH,
+        max_length=MAX_LENGTH,
         # Evaluation and checkpointing
         eval_strategy="steps",
         eval_steps=EVAL_STEPS,
@@ -379,7 +416,7 @@ def train() -> str:
 @app.local_entrypoint()
 def main() -> None:
     """
-    Local entrypoint for ``modal run scripts/training/train_primary.py``.
+    Local entrypoint for ``modal run src/mischar/scripts/training/train_primary.py``.
 
     Dispatches to the remote ``train`` function and prints the result.
     """
