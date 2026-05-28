@@ -343,12 +343,7 @@ def train() -> str:
     print("Starting training...")
     train_result = trainer.train()
 
-    # ----- 7. Save final adapter -----
-
-    final_adapter_path = os.path.join(output_dir, "final")
-    trainer.save_model(final_adapter_path)
-    tokenizer.save_pretrained(final_adapter_path)
-    print(f"Final adapter saved to {final_adapter_path}")
+    # ----- 7. Save best adapter -----
 
     # The best checkpoint by val loss is already loaded (load_best_model_at_end=True).
     # Save it explicitly under a "best" subdirectory for clarity.
