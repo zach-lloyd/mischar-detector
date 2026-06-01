@@ -594,6 +594,10 @@ def _build_perturbation_prompt(
     return template.format(
         claim=source.claim,
         case_name=source.case_name,
+        # Note that some perturbation prompts don't use case_text_excerpt in
+        # their prompt templates. This still passes it in as an argument
+        # regardless, but that's not an issue since unused keywords are just
+        # ignored.
         case_text_excerpt=case_text_excerpt,
         citation_text=source.citation_text,
     )
