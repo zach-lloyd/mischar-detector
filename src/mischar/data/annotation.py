@@ -62,8 +62,6 @@ class AnnotationRecord(BaseModel):
     source: AnnotationSourceInfo
     passage: str
     citation_text_in_passage: str
-    citation_offset: list[int]
-
     cited_case: CitedCaseInfo
 
     gold_claim: str | None = None
@@ -89,30 +87,6 @@ class AnnotationRecord(BaseModel):
         valid = set(Label.values())
         if v not in valid:
             raise ValueError(f"label must be one of {valid}, got '{v}'")
-
-        return v
-
-    @field_validator("citation_offset")
-    @classmethod
-    def validate_offset(cls, v: list[int]) -> list[int]:
-        """
-        Ensure the citation offset is a two-element list of non-negative ints.
-
-        Args:
-            v: The citation offset to validate.
-
-        Returns:
-            The validated offset.
-
-        Raises:
-            ValueError: If the offset is malformed.
-        """
-        if len(v) != 2:
-            raise ValueError(f"citation_offset must have exactly 2 elements, got {len(v)}")
-        if v[0] < 0 or v[1] < 0:
-            raise ValueError(f"citation_offset values must be non-negative, got {v}")
-        if v[0] >= v[1]:
-            raise ValueError(f"citation_offset start must be less than end, got {v}")
 
         return v
 
@@ -200,7 +174,6 @@ def append_annotation(path: Path, record: AnnotationRecord) -> None:
 def create_annotation(
     passage: str,
     citation_text_in_passage: str,
-    citation_offset: tuple[int, int],
     label: str,
     source_info: dict[str, str],
     cited_case_info: dict[str, str],
@@ -221,8 +194,6 @@ def create_annotation(
     Args:
         passage: The full passage text from the brief.
         citation_text_in_passage: The specific citation string.
-        citation_offset: Character offsets (start, end) of the citation
-            within the passage.
         label: One of the four valid classification labels.
         source_info: Dict with keys ``recap_docket_id``, ``court``,
             ``filing_date``, ``document_url``.
@@ -248,7 +219,6 @@ def create_annotation(
         source=AnnotationSourceInfo(**source_info),
         passage=passage,
         citation_text_in_passage=citation_text_in_passage,
-        citation_offset=list(citation_offset),
         cited_case=CitedCaseInfo(**cited_case_info),
         gold_claim=gold_claim,
         label=label,

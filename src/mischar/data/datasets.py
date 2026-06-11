@@ -7,16 +7,14 @@ harness can process uniformly. The loaders handle format differences
 across sources so the rest of the pipeline doesn't have to.
 
 Supported sources:
-- **CaseHOLD**: CaseHOLD-derived (claim, case) pairs with labels.
-- **perturbation**: Synthetically perturbed examples from the generator.
-- **hou**: Hou et al. published dataset.
-- **charlotin**: Charlotin adversarial database.
-- **real_brief**: Hand-annotated real brief citations (our JSONL format).
+- **CaseHOLD**: Accurate/mischaracterized example pairs derived from
+  CaseHOLD entries (used for train and val).
+- **real_brief**: Hand-annotated real brief citations in our JSONL
+  format (used as the held-out test set).
 """
 
 from __future__ import annotations
 
-import csv
 import json
 from pathlib import Path
 
@@ -35,20 +33,36 @@ def load_casehold(path: Path, split: str | None = None) -> list[EvalExample]:
     ``example_id``, ``passage``, ``citation_text``, ``label``, ``split``,
     and optionally ``metadata``.
 
-    CaseHOLD examples are genuine entails pairs — the citation accurately
-    characterizes the case. They're used alongside perturbation examples
-    to test the pipeline's ability to distinguish accurate from inaccurate
-    characterizations.
+    Each CaseHOLD entry contributes a pair of examples: an "accurate"
+    example built from the entry's correct holding and a
+    "mischaracterized" example built from one of the entry's incorrect
+    holding choices. Both pair members share the same citation, so the
+    split-assignment logic keeps them in the same split.
 
     Args:
-        path: Path to the CaseHOLD JSONL file.
+        path: Path to the CaseHOLD JSONL file
+            (output of ``build_casehold_set.py``).
         split: If provided, filter to only examples with this split
             value ("train", "val", or "test").
 
     Returns:
         A list of ``EvalExample`` objects.
     """
-    examples = _load_jsonl(path, source="casehold")
+    raw_records = _read_jsonl(path)
+    examples = []
+
+    for record in raw_records:
+        example = EvalExample(
+            example_id=str(record.get("example_id", "")),
+            source="casehold",
+            passage=record["passage"],
+            citation_text=record["citation_text"],
+            gold_label=record["label"],
+            gold_claim=record.get("gold_claim"),
+            split=record.get("split", "train"),
+            metadata=record.get("metadata", {}),
+        )
+        examples.append(example)
 
     if split:
         examples = [ex for ex in examples if ex.split == split]
@@ -58,149 +72,48 @@ def load_casehold(path: Path, split: str | None = None) -> list[EvalExample]:
     return examples
 
 
-def load_perturbations(path: Path, split: str | None = None) -> list[EvalExample]:
-    """
-    Load synthetically perturbed evaluation examples.
-
-    Expects a JSONL file where each line is a ``PerturbedExample``
-    serialized as JSON with fields: ``example_id``, ``passage``,
-    ``citation_text``, ``target_label`` (used as gold_label),
-    ``perturbed_claim``, ``perturbation_type``, ``split``, and
-    optionally other metadata.
-
-    Args:
-        path: Path to the perturbations JSONL file.
-        split: If provided, filter to only examples with this split value.
-
-    Returns:
-        A list of ``EvalExample`` objects.
-    """
-    raw_records = _read_jsonl(path)
-    examples = []
-
-    for record in raw_records:
-        example = EvalExample(
-            example_id=record["example_id"],
-            source="perturbation",
-            passage=record["passage"],
-            citation_text=record["citation_text"],
-            gold_label=record["target_label"],
-            gold_claim=None,
-            split=record.get("split", "test"),
-            metadata={
-                "perturbation_type": record.get("perturbation_type"),
-                "original_claim": record.get("original_claim"),
-                "perturbed_claim": record.get("perturbed_claim"),
-                "source_example_id": record.get("source_example_id"),
-            },
-        )
-        examples.append(example)
-
-    if split:
-        examples = [ex for ex in examples if ex.split == split]
-
-    log.info("dataset_loaded", source="perturbation", count=len(examples), split=split)
-
-    return examples
-
-
-def load_hou(path: Path, split: str | None = None) -> list[EvalExample]:
-    """
-    Load examples from the Hou et al. dataset.
-
-    Expects a JSONL file with fields: ``example_id`` (or ``id``),
-    ``passage`` (or ``text``), ``citation_text`` (or ``citation``),
-    ``label``, and optionally ``split`` and ``metadata``.
-
-    The Hou dataset's label scheme may differ from ours. This loader
-    expects labels to already be mapped to our four-label scheme
-    during the preprocessing step
-    (``scripts/data_construction/build_hou_set.py``).
-
-    Args:
-        path: Path to the preprocessed Hou JSONL file.
-        split: If provided, filter to only examples with this split value.
-
-    Returns:
-        A list of ``EvalExample`` objects.
-    """
-    raw_records = _read_jsonl(path)
-    examples = []
-
-    for record in raw_records:
-        # Handle alternative field names from the raw Hou format.
-        example = EvalExample(
-            example_id=str(record.get("example_id") or record.get("id", "")),
-            source="hou",
-            passage=record.get("passage") or record.get("text", ""),
-            citation_text=record.get("citation_text") or record.get("citation", ""),
-            gold_label=record["label"],
-            gold_claim=record.get("gold_claim"),
-            split=record.get("split", "test"),
-            metadata=record.get("metadata", {}),
-        )
-        examples.append(example)
-
-    if split:
-        examples = [ex for ex in examples if ex.split == split]
-
-    log.info("dataset_loaded", source="hou", count=len(examples), split=split)
-
-    return examples
-
-
-def load_charlotin(path: Path, split: str | None = None) -> list[EvalExample]:
-    """
-    Load examples from the Charlotin adversarial database.
-
-    Expects a CSV file with columns that include at minimum: a passage
-    or text field, a citation field, and a label field. Column names
-    are mapped during preprocessing
-    (``scripts/data_construction/build_charlotin_set.py``), so this
-    loader expects a preprocessed JSONL file with our standard field
-    names.
-
-    The Charlotin dataset is reported separately in evaluation results
-    as a real-world adversarial stress test.
-
-    Args:
-        path: Path to the preprocessed Charlotin JSONL file.
-        split: If provided, filter to only examples with this split value.
-
-    Returns:
-        A list of ``EvalExample`` objects.
-    """
-    examples = _load_jsonl(path, source="charlotin")
-
-    if split:
-        examples = [ex for ex in examples if ex.split == split]
-
-    log.info("dataset_loaded", source="charlotin", count=len(examples), split=split)
-
-    return examples
-
-
 def load_real_brief(path: Path, split: str | None = None) -> list[EvalExample]:
     """
     Load hand-annotated real brief examples.
 
-    Reads the annotation JSONL format (see blueprint section 4.3) and
-    converts to ``EvalExample``. These are the only examples with
-    ``gold_claim`` set, enabling the dual evaluation flow in the harness.
+    Reads the annotation format (see docs/annotation-guide.md) and
+    converts to ``EvalExample``. The file may be strict JSONL (one
+    object per line) or a sequence of pretty-printed JSON objects
+    separated by commas — both are handled.
+
+    Required fields per record: ``annotation_id``, ``passage``,
+    ``citation_text_in_passage``, and ``label``. ``annotation_id`` must
+    be a stable unique string — predictions are keyed by it, so
+    cross-run per-example analysis breaks if IDs shift between runs.
+    ``gold_claim`` is optional; when absent, the harness simply skips
+    the gold-claim (dual evaluation) pass for that example.
 
     Args:
-        path: Path to the real_briefs.jsonl annotation file.
-        split: If provided, filter to only examples with this split value.
+        path: Path to the annotation file.
+        split: If provided, filter to only examples with this split
+            value. Records without a ``split`` field default to "test".
 
     Returns:
-        A list of ``EvalExample`` objects with ``gold_claim`` populated.
+        A list of ``EvalExample`` objects.
+
+    Raises:
+        ValueError: If any record is missing ``annotation_id``.
     """
-    raw_records = _read_jsonl(path)
+    raw_records = _read_records(path)
     examples = []
 
-    for record in raw_records:
+    for i, record in enumerate(raw_records, start=1):
+        annotation_id = record.get("annotation_id")
+        if not annotation_id:
+            raise ValueError(
+                f"Record {i} in {path} is missing 'annotation_id'. "
+                "Every annotation needs a stable unique ID so per-example "
+                "results can be compared across eval runs. Add one to "
+                "each record and reload."
+            )
+
         example = EvalExample(
-            example_id=record["annotation_id"],
+            example_id=str(annotation_id),
             source="real_brief",
             passage=record["passage"],
             citation_text=record["citation_text_in_passage"],
@@ -208,7 +121,6 @@ def load_real_brief(path: Path, split: str | None = None) -> list[EvalExample]:
             gold_claim=record.get("gold_claim"),
             split=record.get("split", "test"),
             metadata={
-                "annotator": record.get("annotator"),
                 "annotator_notes": record.get("annotator_notes"),
                 "boundary_case": record.get("boundary_case", False),
                 "cited_case": record.get("cited_case", {}),
@@ -230,36 +142,65 @@ def load_real_brief(path: Path, split: str | None = None) -> list[EvalExample]:
 # ---------------------------------------------------------------------------
 
 
-def _load_jsonl(path: Path, source: str) -> list[EvalExample]:
+def _read_records(path: Path) -> list[dict]:
     """
-    CaseHOLD and Charlotin use the same field names, so we define a helper function
-    to create an EvalExample using those field names and then call it in load_casehold
-    and load_charlotin to avoid duplicating the code.
+    Read annotation records from a file in either supported format.
+
+    Tries strict JSONL first (one JSON object per line). If that yields
+    nothing, falls back to parsing the whole file as a comma-separated
+    sequence of pretty-printed JSON objects (the hand-annotation format),
+    by wrapping the content in brackets and parsing it as a JSON array.
+    ``strict=False`` permits literal newlines inside string values.
 
     Args:
-        path: Path to the JSONL file.
-        source: The source name to set on each example.
+        path: Path to the annotation file.
 
     Returns:
-        A list of ``EvalExample`` objects.
+        A list of parsed dicts.
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+        ValueError: If the file can't be parsed in either format.
     """
-    raw_records = _read_jsonl(path)
-    examples = []
+    if not path.exists():
+        raise FileNotFoundError(f"Dataset file not found: {path}")
 
-    for record in raw_records:
-        example = EvalExample(
-            example_id=str(record.get("example_id", "")),
-            source=source,
-            passage=record["passage"],
-            citation_text=record["citation_text"],
-            gold_label=record["label"],
-            gold_claim=record.get("gold_claim"),
-            split=record.get("split", "test"),
-            metadata=record.get("metadata", {}),
-        )
-        examples.append(example)
+    text = path.read_text(encoding="utf-8").strip()
 
-    return examples
+    # Attempt 1: strict JSONL. Done quietly (no per-line warnings) since
+    # a wholesale failure just means the file is in the other format.
+    records = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            records = []
+            break
+
+    if records:
+        return records
+
+    # Attempt 2: comma-separated pretty-printed JSON objects.
+    if text.endswith(","):
+        text = text[:-1]
+
+    try:
+        parsed = json.loads(f"[{text}]", strict=False)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Could not parse {path} as JSONL or as a comma-separated "
+            f"sequence of JSON objects: {exc}"
+        ) from exc
+
+    if not isinstance(parsed, list):
+        parsed = [parsed]
+
+    log.info("dataset_parsed_lenient", path=str(path), count=len(parsed))
+
+    return parsed
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -313,7 +254,7 @@ def validate_labels(examples: list[EvalExample]) -> list[EvalExample]:
         examples: The examples to validate.
 
     Returns:
-        The subset of examples with valid four-label gold labels.
+        The subset of examples with valid binary gold labels.
     """
     valid_labels = set(Label.values())
     valid = []

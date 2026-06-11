@@ -16,9 +16,13 @@ respecting two constraints:
 When temporal information isn't available (``decided_year`` is None),
 examples are assigned randomly with a fixed seed.
 
-Note: val is used for tuning, while test is saved to the very end, to be used
-to get the final numbers. Without this, there is a risk of overfitting to the
-evaluation set.
+Because grouping is by citation, the accurate/mischaracterized pair
+generated from the same CaseHOLD entry always lands in the same split —
+the pair members share a citation.
+
+Note: under the current design, CaseHOLD-derived examples are split into
+train/val only (the default test ratio is 0). The held-out test set is
+the separately-constructed, hand-annotated real-brief dataset.
 """
 
 from __future__ import annotations
@@ -36,9 +40,10 @@ log = get_logger("data.splits")
 TEMPORAL_SPLIT_YEAR = 2020
 
 # Default proportions for random splitting (when temporal info is absent).
-DEFAULT_TRAIN_RATIO = 0.7
+# Train/val only — the hand-annotated real-brief set serves as the test set.
+DEFAULT_TRAIN_RATIO = 0.85
 DEFAULT_VAL_RATIO = 0.15
-DEFAULT_TEST_RATIO = 0.15
+DEFAULT_TEST_RATIO = 0.0
 
 
 def assign_splits(

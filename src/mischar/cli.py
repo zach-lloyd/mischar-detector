@@ -349,8 +349,8 @@ def _build_model_client(
     """
     Construct a model client from its configuration.
 
-    Routes to the appropriate backend (Ollama, MLX, or Gemini) based
-    on the ``backend`` field in the model config.
+    Routes to the appropriate backend (Ollama, MLX, Gemini, or Modal)
+    based on the ``backend`` field in the model config.
 
     Args:
         name: The model's name (used as display name in logs/cache keys).
@@ -389,6 +389,21 @@ def _build_model_client(
             api_key=secrets.gemini_api_key,
             model=model_config.api_model,
             timeout_seconds=timeout,
+        )
+
+    if model_config.backend == "modal":
+        from mischar.models.modal_inference import ModalInferenceClient
+
+        if not model_config.base_model_id:
+            raise ValueError(
+                f"Model '{name}' uses the modal backend but has no "
+                "'base_model_id' configured."
+            )
+
+        return ModalInferenceClient(
+            base_model_id=model_config.base_model_id,
+            adapter_name=model_config.adapter_name,
+            name_override=name,
         )
 
     raise ValueError(f"Unknown backend '{model_config.backend}' for model '{name}'")
@@ -521,16 +536,16 @@ def _format_label(label: str) -> str:
     the verdict at a glance.
 
     Args:
-        label: One of the four classification labels.
+        label: One of the two classification labels.
 
     Returns:
         A formatted label string.
     """
     descriptions = {
-        "entails": "SUPPORTED — Case supports the claim as stated",
-        "partially_supports": "PARTIALLY SUPPORTED — Claim overstates or omits nuance",
-        "unrelated": "UNRELATED — Case does not address this topic",
-        "contradicts": "CONTRADICTED — Case says the opposite of what's claimed",
+        "accurate": "ACCURATE — Case supports the claim as stated",
+        "mischaracterized": (
+            "MISCHARACTERIZED — Claim misstates what the case held"
+        ),
     }
 
     return descriptions.get(label, label.upper())

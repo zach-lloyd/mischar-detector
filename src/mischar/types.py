@@ -117,7 +117,7 @@ class RetrievalResult:
 class Classification:
     """A classification verdict for a (claim, cited-case) pair."""
 
-    label: Literal["entails", "partially_supports", "unrelated", "contradicts"]
+    label: Literal["accurate", "mischaracterized"]
     confidence: float
     supporting_text: str
 
@@ -194,10 +194,10 @@ class EvalExample:
     """A single example in an evaluation dataset."""
 
     example_id: str
-    source: Literal["casehold", "perturbation", "hou", "real_brief", "charlotin"]
+    source: Literal["casehold", "real_brief"]
     passage: str
     citation_text: str
-    gold_label: Literal["entails", "partially_supports", "unrelated", "contradicts"]
+    gold_label: Literal["accurate", "mischaracterized"]
     gold_claim: str | None  # only present for real_brief set (dual evaluation)
     split: Literal["train", "val", "test"]
     metadata: dict = field(default_factory=dict)

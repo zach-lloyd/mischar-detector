@@ -84,7 +84,8 @@ TRAINING_TIMEOUT_SECONDS = 6 * 60 * 60
 
 # Gemma 3 12B IT is the smaller base model.
 BASE_MODEL_ID = "google/gemma-3-12b-it"
-ADAPTER_OUTPUT_NAME = "gemma3-12b-mischar-v1"
+# v2: binary accurate/mischaracterized labels with label-only completions.
+ADAPTER_OUTPUT_NAME = "gemma3-12b-mischar-v2"
 
 # Same QLoRA configuration as primary. No reason to change these for the
 # 12B model — the adapter capacity should be proportionally similar.

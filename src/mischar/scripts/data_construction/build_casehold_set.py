@@ -1,40 +1,49 @@
 """
-Build the CaseHOLD evaluation set.
+Build the CaseHOLD accurate/mischaracterized example set.
 
-Downloads the CaseHOLD dataset from HuggingFace and converts it into
-standardized JSONL that ``datasets.load_casehold()`` can read. Each
-CaseHOLD example is a genuine "entails" pair — the holding accurately
-describes the cited case.
+Downloads the CaseHOLD dataset from HuggingFace and converts each entry
+into a PAIR of standardized JSONL records:
+
+1. An **accurate** example — the passage with the correct holding inserted.
+2. A **mischaracterized** example — the same passage with one of the
+   entry's incorrect holding choices inserted instead.
+
+CaseHOLD is a multiple-choice dataset: each entry has five candidate
+holdings (``holding_0`` ... ``holding_4``) and a label indicating which
+one is correct. The four incorrect holdings are plausible-but-wrong
+characterizations of the cited case, so they serve as natural
+mischaracterization examples without any LLM generation. One incorrect
+holding is chosen per entry with a seeded RNG for reproducibility.
 
 The script:
 1. Loads the dataset from HuggingFace (``casehold/casehold``).
-2. For each example, extracts the correct holding and keeps it in its
-   original parenthetical style ("holding that X") as the claim.
-3. Reconstructs a natural passage by replacing the ``<HOLDING>`` placeholder
-   with the holding in parenthetical form.
-4. Runs eyecite on the reconstructed passage to extract the citation
+2. For each entry, reconstructs two passages by replacing the
+   ``<HOLDING>`` placeholder with the correct and an incorrect holding.
+3. Runs eyecite on the reconstructed passage to extract the citation
    immediately preceding the holding — the same parser the pipeline uses,
    ensuring format consistency.
-5. Filters out examples where eyecite can't parse the target citation.
-6. Writes the output as JSONL.
+4. Filters out entries where eyecite can't parse the target citation
+   (both pair members are dropped together).
+5. Writes the output as JSONL, two records per kept entry.
 
 Usage:
     python -m mischar.scripts.data_construction.build_casehold_set \\
         --output data/processed/casehold.jsonl \\
         [--split train] \\
-        [--max-examples 5000]
+        [--max-entries 5000] \\
+        [--seed 42]
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 from pathlib import Path
 
 from eyecite import get_citations
 from eyecite.models import FullCaseCitation
-
 
 # ---------------------------------------------------------------------------
 # Passage reconstruction
@@ -43,6 +52,9 @@ from eyecite.models import FullCaseCitation
 # The <HOLDING> placeholder in citing_prompt, with its surrounding
 # parentheses. CaseHOLD format is: "Case Name, Reporter (<HOLDING>)"
 _HOLDING_PLACEHOLDER = "(<HOLDING>)"
+
+# Number of candidate holdings per CaseHOLD entry.
+_NUM_HOLDINGS = 5
 
 
 def _reconstruct_passage(citing_prompt: str, holding: str) -> str:
@@ -55,7 +67,7 @@ def _reconstruct_passage(citing_prompt: str, holding: str) -> str:
     Args:
         citing_prompt: The CaseHOLD citing prompt with ``<HOLDING>``
             placeholder.
-        holding: The correct holding text.
+        holding: The holding text to insert (correct or incorrect).
 
     Returns:
         The passage with the holding inserted.
@@ -120,52 +132,88 @@ def _find_target_citation(
 
 
 # ---------------------------------------------------------------------------
-# Single example processing
+# Single entry processing
 # ---------------------------------------------------------------------------
 
 
-def _process_example(row: dict) -> dict | None:
+def _process_entry(row: dict, rng: random.Random) -> list[dict] | None:
     """
-    Process a single CaseHOLD example into the standardized format.
+    Process a single CaseHOLD entry into an accurate/mischaracterized pair.
+
+    Both pair members share the same citation and source entry; they
+    differ only in which holding is inserted into the passage and in
+    their label. The incorrect holding is picked at random (seeded)
+    from the entry's four wrong choices.
 
     Args:
         row: A dict from the HuggingFace dataset with fields:
             ``example_id``, ``citing_prompt``, ``holding_0`` through
             ``holding_4``, and ``label``.
+        rng: Seeded RNG used to pick which incorrect holding to use.
 
     Returns:
-        A dict ready for JSONL output with fields: ``example_id``,
+        A list of two dicts ready for JSONL output (accurate first,
+        mischaracterized second), each with fields: ``example_id``,
         ``passage``, ``citation_text``, ``label``, ``metadata``.
-        Returns None if the target citation can't be parsed.
+        Returns None if the target citation can't be parsed — in that
+        case the whole entry is dropped so pairs stay balanced.
     """
     example_id = row["example_id"]
     citing_prompt = row["citing_prompt"]
-    label_idx = row["label"]
-    correct_holding = row[f"holding_{label_idx}"]
+    correct_idx = int(row["label"])
+    correct_holding = row[f"holding_{correct_idx}"]
+
+    # Pick one of the four incorrect holdings at random.
+    wrong_indices = [i for i in range(_NUM_HOLDINGS) if i != correct_idx]
+    wrong_idx = rng.choice(wrong_indices)
+    wrong_holding = row[f"holding_{wrong_idx}"]
+
+    if not correct_holding or not wrong_holding:
+        return None
 
     # Find where <HOLDING> is so we can identify the target citation.
     holding_offset = citing_prompt.find("<HOLDING>")
     if holding_offset == -1:
         return None
 
-    # Reconstruct the passage with the holding inserted.
-    passage = _reconstruct_passage(citing_prompt, correct_holding)
+    # Reconstruct both passages.
+    accurate_passage = _reconstruct_passage(citing_prompt, correct_holding)
+    mischar_passage = _reconstruct_passage(citing_prompt, wrong_holding)
 
-    # Extract the target citation using eyecite.
-    citation_text = _find_target_citation(passage, holding_offset)
+    # Extract the target citation. The citation is identical in both
+    # passages (only the parenthetical differs), so parsing the accurate
+    # passage is sufficient.
+    citation_text = _find_target_citation(accurate_passage, holding_offset)
     if not citation_text:
         return None
 
-    return {
-        "example_id": str(example_id),
-        "passage": passage,
+    accurate_record = {
+        "example_id": f"{example_id}-acc",
+        "passage": accurate_passage,
         "citation_text": citation_text,
-        "label": "entails",
+        "label": "accurate",
         "metadata": {
             "source_dataset": "casehold",
+            "source_entry_id": str(example_id),
             "claim": correct_holding,
         },
     }
+
+    mischar_record = {
+        "example_id": f"{example_id}-mis",
+        "passage": mischar_passage,
+        "citation_text": citation_text,
+        "label": "mischaracterized",
+        "metadata": {
+            "source_dataset": "casehold",
+            "source_entry_id": str(example_id),
+            "claim": wrong_holding,
+            "correct_claim": correct_holding,
+            "wrong_holding_index": wrong_idx,
+        },
+    }
+
+    return [accurate_record, mischar_record]
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +223,10 @@ def _process_example(row: dict) -> dict | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Build CaseHOLD evaluation set from HuggingFace.",
+        description=(
+            "Build the CaseHOLD accurate/mischaracterized pair set "
+            "from HuggingFace."
+        ),
     )
     parser.add_argument(
         "--output",
@@ -191,11 +242,19 @@ def main() -> None:
         "If not specified, uses all splits.",
     )
     parser.add_argument(
-        "--max-examples",
+        "--max-entries",
         type=int,
-        default=None,
-        help="Maximum number of examples to process. Useful for testing "
-        "or when you don't need the full 53K dataset.",
+        default=5000,
+        help="Maximum number of CaseHOLD entries to process. Each kept "
+        "entry produces TWO examples (one accurate, one mischaracterized). "
+        "Default: 5000.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for choosing which incorrect holding to use "
+        "per entry (default: 42).",
     )
     args = parser.parse_args()
 
@@ -227,35 +286,37 @@ def main() -> None:
         for split_name in dataset:
             rows.extend(dataset[split_name])
 
-    print(f"Loaded {len(rows)} examples from CaseHOLD.")
+    print(f"Loaded {len(rows)} entries from CaseHOLD.")
 
-    if args.max_examples:
-        rows = rows[: args.max_examples]
-        print(f"Limiting to {len(rows)} examples.")
+    if args.max_entries:
+        rows = rows[: args.max_entries]
+        print(f"Limiting to {len(rows)} entries.")
 
-    # ---- Process examples ----
+    # ---- Process entries ----
 
+    rng = random.Random(args.seed)
     output_records = []
     skipped = 0
 
     for i, row in enumerate(rows):
-        result = _process_example(row)
+        pair = _process_entry(row, rng)
 
-        if result is None:
+        if pair is None:
             skipped += 1
             continue
 
-        output_records.append(result)
+        output_records.extend(pair)
 
-        if (i + 1) % 5000 == 0:
+        if (i + 1) % 1000 == 0:
             print(
-                f"  Processed {i + 1}/{len(rows)} "
-                f"({len(output_records)} kept, {skipped} skipped)"
+                f"  Processed {i + 1}/{len(rows)} entries "
+                f"({len(output_records)} examples kept, {skipped} entries skipped)"
             )
 
     print(
-        f"Processing complete: {len(output_records)} examples kept, "
-        f"{skipped} skipped (eyecite couldn't parse target citation)."
+        f"Processing complete: {len(output_records)} examples "
+        f"({len(output_records) // 2} pairs) kept, "
+        f"{skipped} entries skipped (eyecite couldn't parse target citation)."
     )
 
     # ---- Write output ----

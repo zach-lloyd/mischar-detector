@@ -273,8 +273,8 @@ class Pipeline:
         Stage 5: Classify the relationship between claim and case text.
 
         Calls the classifier LLM with the claim and retrieved chunks to
-        determine whether the case supports, partially supports,
-        contradicts, or is unrelated to the claim.
+        determine whether the claim accurately characterizes the case
+        or mischaracterizes it.
 
         Args:
             claim: The attributed claim (what the brief says the case held).

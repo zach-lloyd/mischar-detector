@@ -21,12 +21,16 @@ PIPELINE_VERSION = "0.1.0"
 
 
 class Label(StrEnum):
-    """Four-label classification scheme for citation characterization."""
+    """
+    Binary classification scheme for citation characterization.
 
-    ENTAILS = "entails"
-    PARTIALLY_SUPPORTS = "partially_supports"
-    UNRELATED = "unrelated"
-    CONTRADICTS = "contradicts"
+    - **accurate**: The citation accurately characterizes the cited case.
+    - **mischaracterized**: The citation misstates what the cited case
+      held or established (overstatement, wrong issue, contradiction, etc.).
+    """
+
+    ACCURATE = "accurate"
+    MISCHARACTERIZED = "mischaracterized"
 
     @classmethod
     def values(cls) -> list[str]:
@@ -60,13 +64,16 @@ class AbstentionReason(StrEnum):
 
 
 class EvalSource(StrEnum):
-    """Dataset sources used in evaluation."""
+    """
+    Dataset sources used in evaluation.
+
+    - **casehold**: CaseHOLD-derived accurate/mischaracterized pairs
+      (train and val splits).
+    - **real_brief**: Hand-annotated real-world brief citations (test set).
+    """
 
     CASEHOLD = "casehold"
-    PERTURBATION = "perturbation"
-    HOU = "hou"
     REAL_BRIEF = "real_brief"
-    CHARLOTIN = "charlotin"
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +81,7 @@ class EvalSource(StrEnum):
 # ---------------------------------------------------------------------------
 
 DEFAULT_ATTRIBUTION_PROMPT_VERSION = "v1.0"
-DEFAULT_CLASSIFICATION_PROMPT_VERSION = "v1.0"
+DEFAULT_CLASSIFICATION_PROMPT_VERSION = "v2.0"
 
 # ---------------------------------------------------------------------------
 # Disclaimer

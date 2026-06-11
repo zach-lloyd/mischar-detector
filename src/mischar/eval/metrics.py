@@ -35,7 +35,7 @@ def compute_metrics(
         predictions: Pipeline predictions, one per eval example. Order
             must match ``gold_labels``.
         gold_labels: Ground-truth labels, one per eval example. Must be
-            one of the four valid ``Label`` values.
+            one of the valid ``Label`` values.
 
     Returns:
         A ``MetricsBundle`` with macro F1, per-label metrics, confusion
@@ -148,8 +148,9 @@ def _compute_macro_f1(
     Compute macro-averaged F1 across all labels.
 
     Macro averaging gives equal weight to each label regardless of
-    support, which matters when label distributions are imbalanced
-    (as they are here — entails examples outnumber contradicts).
+    support. CaseHOLD-derived data is balanced by construction (one
+    accurate + one mischaracterized example per entry), but the
+    real-brief test set may not be, so macro averaging still matters.
 
     Args:
         y_true: Ground-truth label strings.

@@ -1,9 +1,13 @@
 """
 Generate a small sample training dataset for Modal dry-run testing.
 
-Produces 20 train examples and 5 val examples covering all four labels,
+Produces 21 train examples and 5 val examples covering both labels,
 using ``build_classification_prompt()`` to generate realistic prompts.
 The case text and claims are synthetic but structurally realistic.
+
+Completions are label-only JSON (``{"label": "accurate"}`` or
+``{"label": "mischaracterized"}``), matching the format produced by
+``build_training_data.py``.
 
 Usage:
     python -m mischar.scripts.training.generate_sample_data
@@ -27,12 +31,13 @@ from mischar.prompts.classification import build_classification_prompt
 DATA_DIR = Path("src/mischar/data/sample_data")
 
 # ---------------------------------------------------------------------------
-# Synthetic examples — (case_name, claim, case_excerpt, label, confidence,
-# supporting_text) tuples grouped by label
+# Synthetic examples — (case_name, claim, case_excerpt, label) dicts.
+# "accurate" examples state the holding correctly; "mischaracterized"
+# examples overstate, drop qualifications, miss the topic, or contradict.
 # ---------------------------------------------------------------------------
 
 EXAMPLES = [
-    # ---- entails ----
+    # ---- accurate ----
     {
         "case_name": "Smith v. Johnson",
         "claim": (
@@ -49,13 +54,7 @@ EXAMPLES = [
             "and the reduced expectation of privacy therein justify "
             "this exception."
         ),
-        "label": "entails",
-        "confidence": 0.95,
-        "supporting_text": (
-            "The case directly holds that warrantless vehicle searches "
-            "are permitted with probable cause under the automobile "
-            "exception."
-        ),
+        "label": "accurate",
     },
     {
         "case_name": "Garcia v. State Board of Education",
@@ -71,12 +70,7 @@ EXAMPLES = [
             "to reasonable limitations necessary to maintain order and "
             "discipline."
         ),
-        "label": "entails",
-        "confidence": 0.92,
-        "supporting_text": (
-            "The court explicitly states that students retain First "
-            "Amendment rights at school."
-        ),
+        "label": "accurate",
     },
     {
         "case_name": "Thornton v. United States",
@@ -91,12 +85,7 @@ EXAMPLES = [
             "conduct by removing the incentive to disregard "
             "constitutional protections."
         ),
-        "label": "entails",
-        "confidence": 0.93,
-        "supporting_text": (
-            "The case states that evidence from unconstitutional "
-            "searches must be excluded."
-        ),
+        "label": "accurate",
     },
     {
         "case_name": "Patel v. Commissioner of Internal Revenue",
@@ -111,12 +100,7 @@ EXAMPLES = [
             "carrying on any trade or business. Both conditions — "
             "ordinary and necessary — must be satisfied."
         ),
-        "label": "entails",
-        "confidence": 0.97,
-        "supporting_text": (
-            "The case confirms both the ordinary and necessary "
-            "requirements for Section 162 deductions."
-        ),
+        "label": "accurate",
     },
     {
         "case_name": "Rivera v. Metro Transit Authority",
@@ -130,12 +114,7 @@ EXAMPLES = [
             "to exercise extraordinary vigilance to protect passengers "
             "from harm during transit."
         ),
-        "label": "entails",
-        "confidence": 0.94,
-        "supporting_text": (
-            "The case explicitly establishes the highest duty of care "
-            "standard for common carriers."
-        ),
+        "label": "accurate",
     },
     {
         "case_name": "Williams v. Consolidated Industries",
@@ -150,15 +129,102 @@ EXAMPLES = [
             "no-fault system provides the exclusive remedy for covered "
             "workplace injuries."
         ),
-        "label": "entails",
-        "confidence": 0.96,
-        "supporting_text": (
-            "The case confirms strict liability under workers' "
-            "compensation for workplace injuries."
+        "label": "accurate",
+    },
+    {
+        "case_name": "Lopez v. Federal Housing Authority",
+        "claim": (
+            "The Fair Housing Act prohibits discrimination in the "
+            "sale or rental of housing based on race."
         ),
+        "case_excerpt": (
+            "Congress enacted the Fair Housing Act to provide, within "
+            "constitutional limitations, for fair housing throughout "
+            "the United States. The Act prohibits discrimination in "
+            "the sale, rental, and financing of dwellings on the "
+            "basis of race, color, religion, sex, or national origin."
+        ),
+        "label": "accurate",
+    },
+    {
+        "case_name": "Hernandez v. Coastal Shipping Co.",
+        "claim": (
+            "A seaman injured in the course of employment may recover "
+            "maintenance and cure regardless of fault."
+        ),
+        "case_excerpt": (
+            "The doctrine of maintenance and cure entitles a seaman "
+            "injured while in the service of his ship to food, lodging, "
+            "and medical care, without regard to the negligence of the "
+            "employer or the seaman's own contributory fault, short of "
+            "willful misconduct."
+        ),
+        "label": "accurate",
+    },
+    {
+        "case_name": "In re Estate of Donovan",
+        "claim": (
+            "A holographic will is valid only if the material "
+            "provisions are in the testator's own handwriting."
+        ),
+        "case_excerpt": (
+            "Under the governing statute, a holographic will may be "
+            "admitted to probate if the signature and the material "
+            "provisions are in the handwriting of the testator. Typed "
+            "or preprinted text cannot supply the material terms."
+        ),
+        "label": "accurate",
+    },
+    {
+        "case_name": "Nakamura v. Pacific Airlines",
+        "claim": (
+            "Under the Montreal Convention, a carrier is liable for "
+            "passenger injuries caused by an accident on board an "
+            "international flight."
+        ),
+        "case_excerpt": (
+            "The Montreal Convention provides that the carrier is "
+            "liable for damage sustained in case of death or bodily "
+            "injury of a passenger upon condition only that the "
+            "accident which caused the death or injury took place on "
+            "board the aircraft or in the course of embarking or "
+            "disembarking."
+        ),
+        "label": "accurate",
+    },
+    {
+        "case_name": "Okafor v. City of Riverton",
+        "claim": (
+            "A municipality cannot be held liable under Section 1983 "
+            "on a theory of respondeat superior."
+        ),
+        "case_excerpt": (
+            "We reaffirm that a municipality may not be held liable "
+            "under Section 1983 solely because it employs a tortfeasor. "
+            "Liability attaches only when execution of the government's "
+            "policy or custom inflicts the injury."
+        ),
+        "label": "accurate",
+    },
+    {
+        "case_name": "Vance v. Greenfield Hospital",
+        "claim": (
+            "Expert testimony is required to establish the standard of "
+            "care in a medical malpractice action except where the "
+            "negligence is within the common knowledge of laypersons."
+        ),
+        "case_excerpt": (
+            "In medical malpractice actions, the plaintiff must "
+            "ordinarily present expert testimony to establish the "
+            "applicable standard of care. An exception exists where "
+            "the alleged negligence is so apparent that a layperson "
+            "could recognize it without specialized knowledge, such as "
+            "a surgical instrument left in the patient's body."
+        ),
+        "label": "accurate",
     },
 
-    # ---- partially_supports ----
+    # ---- mischaracterized: drops qualifications / overstates ----
     {
         "case_name": "Anderson v. Liberty Lobby",
         "claim": (
@@ -174,14 +240,7 @@ EXAMPLES = [
             "party and draw all reasonable inferences in that party's "
             "favor."
         ),
-        "label": "partially_supports",
-        "confidence": 0.85,
-        "supporting_text": (
-            "The case addresses summary judgment but requires absence "
-            "of genuine factual disputes, not merely evidence in the "
-            "movant's favor. The claim drops the 'no genuine dispute' "
-            "qualification."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Chen v. Pacific Insurance Co.",
@@ -196,13 +255,7 @@ EXAMPLES = [
             "unambiguous, the court must enforce the policy as "
             "written without resort to rules of construction."
         ),
-        "label": "partially_supports",
-        "confidence": 0.88,
-        "supporting_text": (
-            "The case only applies contra proferentem when policy "
-            "language is ambiguous. The claim drops the ambiguity "
-            "prerequisite, making it overbroad."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Douglas v. State Personnel Board",
@@ -219,13 +272,7 @@ EXAMPLES = [
             "cases where the initial procedures are inadequate to "
             "resolve the factual disputes."
         ),
-        "label": "partially_supports",
-        "confidence": 0.82,
-        "supporting_text": (
-            "The case requires due process but only mandates a full "
-            "hearing when initial procedures are inadequate. The "
-            "claim inflates this to all terminations."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Baxter v. Regional Medical Center",
@@ -241,37 +288,26 @@ EXAMPLES = [
             "at the hospital, unless the patient reasonably believed "
             "the physician was an employee of the hospital."
         ),
-        "label": "partially_supports",
-        "confidence": 0.80,
-        "supporting_text": (
-            "The case limits hospital liability to employed or "
-            "apparent-agent physicians. The claim overgeneralizes "
-            "to all physicians."
-        ),
+        "label": "mischaracterized",
     },
     {
-        "case_name": "Morrison v. National Bank",
+        "case_name": "Taylor v. City of Springfield",
         "claim": (
-            "Banks must verify the identity of every person who "
-            "enters the premises."
+            "Municipal governments are always liable for injuries "
+            "caused by negligent road maintenance."
         ),
         "case_excerpt": (
-            "Financial institutions must implement reasonable "
-            "customer identification procedures for account opening "
-            "and significant transactions, as required by the Bank "
-            "Secrecy Act. These procedures include verifying the "
-            "identity of any person seeking to open an account."
+            "A municipality may be held liable for injuries caused "
+            "by its failure to maintain roadways in a reasonably "
+            "safe condition, provided the plaintiff demonstrates that "
+            "the municipality had actual or constructive notice of "
+            "the dangerous condition and a reasonable opportunity to "
+            "remedy it."
         ),
-        "label": "partially_supports",
-        "confidence": 0.78,
-        "supporting_text": (
-            "The case requires identity verification for account "
-            "opening, not for every person entering the premises. "
-            "The claim vastly overstates the scope."
-        ),
+        "label": "mischaracterized",
     },
 
-    # ---- unrelated ----
+    # ---- mischaracterized: case doesn't address the topic ----
     {
         "case_name": "Katz v. United States",
         "claim": (
@@ -286,13 +322,7 @@ EXAMPLES = [
             "even in an area accessible to the public, may be "
             "constitutionally protected."
         ),
-        "label": "unrelated",
-        "confidence": 0.97,
-        "supporting_text": (
-            "The case addresses Fourth Amendment privacy protections. "
-            "It has nothing to do with landlord-tenant law or rent "
-            "increases."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Fletcher v. Peck",
@@ -308,12 +338,7 @@ EXAMPLES = [
             "impair the obligation of contracts, including grants "
             "of land."
         ),
-        "label": "unrelated",
-        "confidence": 0.98,
-        "supporting_text": (
-            "The case is about the Contract Clause and state land "
-            "grants. Environmental assessments are not discussed."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Harper v. Virginia Board of Elections",
@@ -328,12 +353,7 @@ EXAMPLES = [
             "electoral standard. Voter qualifications have no "
             "relation to wealth."
         ),
-        "label": "unrelated",
-        "confidence": 0.99,
-        "supporting_text": (
-            "The case addresses voting rights and poll taxes. "
-            "Corporate governance is entirely unrelated."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Wickard v. Filburn",
@@ -349,35 +369,10 @@ EXAMPLES = [
             "wheat, though trivial by itself, contributes to the "
             "overall supply and demand of the commodity."
         ),
-        "label": "unrelated",
-        "confidence": 0.98,
-        "supporting_text": (
-            "The case concerns the Commerce Clause and agricultural "
-            "regulation. Medical licensing is not addressed."
-        ),
-    },
-    {
-        "case_name": "Marbury v. Madison",
-        "claim": (
-            "Tenants have an implied warranty of habitability in "
-            "residential leases."
-        ),
-        "case_excerpt": (
-            "It is emphatically the province and duty of the judicial "
-            "department to say what the law is. Those who apply the "
-            "rule to particular cases must of necessity expound and "
-            "interpret that rule. If two laws conflict with each "
-            "other, the courts must decide on the operation of each."
-        ),
-        "label": "unrelated",
-        "confidence": 0.99,
-        "supporting_text": (
-            "The case establishes judicial review. It does not "
-            "address landlord-tenant law or habitability."
-        ),
+        "label": "mischaracterized",
     },
 
-    # ---- contradicts ----
+    # ---- mischaracterized: contradicts the holding ----
     {
         "case_name": "Miranda v. Arizona",
         "claim": (
@@ -394,12 +389,7 @@ EXAMPLES = [
             "does make may be used as evidence against him, and that "
             "he has a right to the presence of an attorney."
         ),
-        "label": "contradicts",
-        "confidence": 0.98,
-        "supporting_text": (
-            "The case holds the exact opposite — police must inform "
-            "suspects of their rights before custodial interrogation."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Brown v. Board of Education",
@@ -414,12 +404,7 @@ EXAMPLES = [
             "plaintiffs are deprived of the equal protection of the "
             "laws guaranteed by the Fourteenth Amendment."
         ),
-        "label": "contradicts",
-        "confidence": 0.99,
-        "supporting_text": (
-            "The case explicitly holds that segregated schools are "
-            "inherently unequal and violate equal protection."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Gideon v. Wainwright",
@@ -435,13 +420,7 @@ EXAMPLES = [
             "and is made obligatory upon the states by the Fourteenth "
             "Amendment."
         ),
-        "label": "contradicts",
-        "confidence": 0.97,
-        "supporting_text": (
-            "The case establishes that indigent defendants have a "
-            "constitutional right to counsel — the opposite of the "
-            "claim."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "New York Times Co. v. Sullivan",
@@ -458,13 +437,7 @@ EXAMPLES = [
             "knowledge that it was false or with reckless disregard "
             "of whether it was false or not."
         ),
-        "label": "contradicts",
-        "confidence": 0.96,
-        "supporting_text": (
-            "The case requires proof of actual malice for public "
-            "official defamation claims — directly contradicting "
-            "the claim."
-        ),
+        "label": "mischaracterized",
     },
     {
         "case_name": "Mapp v. Ohio",
@@ -480,97 +453,7 @@ EXAMPLES = [
             "obtained evidence, is an essential part of the Fourth "
             "and Fourteenth Amendments."
         ),
-        "label": "contradicts",
-        "confidence": 0.97,
-        "supporting_text": (
-            "The case holds that illegally obtained evidence is "
-            "inadmissible in state courts, contradicting the claim."
-        ),
-    },
-    {
-        "case_name": "Lopez v. Federal Housing Authority",
-        "claim": (
-            "The Fair Housing Act prohibits discrimination in the "
-            "sale or rental of housing based on race."
-        ),
-        "case_excerpt": (
-            "Congress enacted the Fair Housing Act to provide, within "
-            "constitutional limitations, for fair housing throughout "
-            "the United States. The Act prohibits discrimination in "
-            "the sale, rental, and financing of dwellings on the "
-            "basis of race, color, religion, sex, or national origin."
-        ),
-        "label": "entails",
-        "confidence": 0.95,
-        "supporting_text": (
-            "The case directly confirms the Fair Housing Act's "
-            "prohibition on race-based housing discrimination."
-        ),
-    },
-    {
-        "case_name": "Taylor v. City of Springfield",
-        "claim": (
-            "Municipal governments are always liable for injuries "
-            "caused by negligent road maintenance."
-        ),
-        "case_excerpt": (
-            "A municipality may be held liable for injuries caused "
-            "by its failure to maintain roadways in a reasonably "
-            "safe condition, provided the plaintiff demonstrates that "
-            "the municipality had actual or constructive notice of "
-            "the dangerous condition and a reasonable opportunity to "
-            "remedy it."
-        ),
-        "label": "partially_supports",
-        "confidence": 0.83,
-        "supporting_text": (
-            "The case allows municipal liability but requires notice "
-            "and opportunity to remedy. The claim drops these "
-            "conditions by saying 'always liable'."
-        ),
-    },
-    {
-        "case_name": "United States v. Curtiss-Wright Export Corp.",
-        "claim": (
-            "Zoning regulations must comply with the Americans with "
-            "Disabilities Act."
-        ),
-        "case_excerpt": (
-            "The President possesses plenary and exclusive power in "
-            "the field of international relations, a power which does "
-            "not require as a basis for its exercise an act of "
-            "Congress. The broad statement that the federal government "
-            "can exercise no powers except those specifically "
-            "enumerated in the Constitution has only a limited truth."
-        ),
-        "label": "unrelated",
-        "confidence": 0.98,
-        "supporting_text": (
-            "The case addresses presidential foreign affairs power. "
-            "Zoning and disability law are not discussed."
-        ),
-    },
-    {
-        "case_name": "Roe v. Wade",
-        "claim": (
-            "States have unrestricted authority to prohibit abortion "
-            "at any stage of pregnancy."
-        ),
-        "case_excerpt": (
-            "The right of personal privacy includes the abortion "
-            "decision, but this right is not unqualified and must be "
-            "considered against important state interests in "
-            "regulation. During the first trimester, the abortion "
-            "decision must be left to the medical judgment of the "
-            "pregnant woman's attending physician."
-        ),
-        "label": "contradicts",
-        "confidence": 0.95,
-        "supporting_text": (
-            "The case holds that states cannot prohibit abortion "
-            "without restriction, especially in the first trimester "
-            "— contradicting the claim of unrestricted authority."
-        ),
+        "label": "mischaracterized",
     },
 ]
 
@@ -584,15 +467,12 @@ def main() -> None:
     """
     Generate train.jsonl and val.jsonl from the synthetic examples.
 
-    Splits examples into 20 train + 5 val, ensuring at least one of
-    each label appears in val. Builds prompts using the actual
+    Splits the 26 examples into 21 train + 5 val, ensuring both labels
+    appear in both splits. Builds prompts using the actual
     ``build_classification_prompt()`` function.
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Split: take the last example of each label group for val (5 total),
-    # the rest go to train (20 total). This guarantees all four labels
-    # appear in both splits.
     by_label: dict[str, list[dict]] = {}
     for ex in EXAMPLES:
         by_label.setdefault(ex["label"], []).append(ex)
@@ -600,15 +480,14 @@ def main() -> None:
     train_examples = []
     val_examples = []
 
-    for label, group in by_label.items():
-        # Last example of each label goes to val.
-        val_examples.append(group[-1])
+    # Take the last two accurate and last three mischaracterized examples
+    # for val (5 total); the rest go to train (20 total). This guarantees
+    # both labels appear in both splits.
+    val_examples.extend(by_label["accurate"][-2:])
+    train_examples.extend(by_label["accurate"][:-2])
 
-        # The rest go to train.
-        train_examples.extend(group[:-1])
-
-    # Val has 4 examples (one per label). Add one more to reach 5
-    val_examples.append(train_examples.pop(0))
+    val_examples.extend(by_label["mischaracterized"][-3:])
+    train_examples.extend(by_label["mischaracterized"][:-3])
 
     print(f"Train: {len(train_examples)} examples")
     print(f"Val: {len(val_examples)} examples")
@@ -626,12 +505,12 @@ def _write_jsonl(path: Path, examples: list[dict]) -> None:
 
     Each example is converted to a training record by:
     1. Building the classification prompt via ``build_classification_prompt()``.
-    2. Formatting the target output as a JSON string.
+    2. Formatting the target output as a label-only JSON string.
 
     Args:
         path: Output file path.
         examples: List of example dicts with case_name, claim,
-            case_excerpt, label, confidence, supporting_text.
+            case_excerpt, and label.
     """
     with open(path, "w", encoding="utf-8") as f:
         for ex in examples:
@@ -641,11 +520,7 @@ def _write_jsonl(path: Path, examples: list[dict]) -> None:
                 case_name=ex["case_name"],
             )
 
-            completion = json.dumps({
-                "label": ex["label"],
-                "confidence": ex["confidence"],
-                "supporting_text": ex["supporting_text"],
-            })
+            completion = json.dumps({"label": ex["label"]})
 
             record = {"prompt": prompt, "completion": completion}
             f.write(json.dumps(record) + "\n")

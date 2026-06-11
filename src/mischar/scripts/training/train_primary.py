@@ -82,7 +82,8 @@ TRAINING_TIMEOUT_SECONDS = 6 * 60 * 60
 # Model identifiers on HuggingFace. Gemma 3 27B IT (instruction-tuned) is
 # the base model we fine-tune on top of.
 BASE_MODEL_ID = "google/gemma-3-27b-it"
-ADAPTER_OUTPUT_NAME = "gemma3-27b-mischar-v1"
+# v2: binary accurate/mischaracterized labels with label-only completions.
+ADAPTER_OUTPUT_NAME = "gemma3-27b-mischar-v2"
 
 # QLoRA configuration.
 LORA_RANK = 32

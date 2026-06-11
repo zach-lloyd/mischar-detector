@@ -51,8 +51,8 @@ def classify(
             in cache keys so prompt changes invalidate cached results.
 
     Returns:
-        A ``Classification`` with one of four labels: entails,
-        partially_supports, unrelated, or contradicts.
+        A ``Classification`` with one of two labels: accurate or
+        mischaracterized.
     """
     # Build cache key from all inputs that affect the classification.
     # Using chunk texts (not embeddings) because the classifier sees
@@ -100,9 +100,11 @@ def classify(
         )
         result = _call_and_parse(stricter_prompt, client)
 
-    # If still no valid result, fall back to a low-confidence "unrelated"
-    # classification with a logged warning. This is a last resort — structured 
-    # output mode should prevent it.
+    # If still no valid result, fall back to a low-confidence
+    # "mischaracterized" classification with a logged warning. This is a
+    # last resort — structured output mode should prevent it. We default
+    # to "mischaracterized" because flagging for human review is the
+    # safer failure mode than silently passing a citation as accurate.
     if result is None:
         log.error(
             "classify_fallback",
@@ -110,7 +112,7 @@ def classify(
             reason="malformed JSON after retry",
         )
         classification = Classification(
-            label="unrelated",
+            label="mischaracterized",
             confidence=0.1,
             supporting_text="Classification failed — model returned malformed output.",
         )
@@ -128,8 +130,9 @@ def classify(
             case=case.case_name,
             raw_label=raw_label,
         )
-        # Default to "unrelated" with low confidence for invalid labels.
-        raw_label = "unrelated"
+        # Default to "mischaracterized" with low confidence for invalid
+        # labels — flagging for review is the safer failure mode.
+        raw_label = "mischaracterized"
         confidence = 0.1
     else:
         confidence = float(result.get("confidence", 0.5))

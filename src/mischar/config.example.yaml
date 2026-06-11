@@ -16,14 +16,22 @@ models:
   gemma27b-prompted:
     backend: ollama
     ollama_model: gemma3:27b
+  # Fine-tuned models run on Modal with the same stack (transformers +
+  # PEFT + bnb-NF4) that trained them. Deploy the inference app first:
+  #   modal deploy src/mischar/scripts/inference/serve_adapter.py
   gemma27b-tuned:
-    backend: mlx
-    base_model_path: mlx-community/gemma-3-27b-it-4bit
-    adapter_path: ./artifacts/adapters/gemma3-27b-mischar-v1
+    backend: modal
+    base_model_id: google/gemma-3-27b-it
+    adapter_name: gemma3-27b-mischar-v2
   gemma12b-tuned:
-    backend: mlx
-    base_model_path: mlx-community/gemma-3-12b-it-4bit
-    adapter_path: ./artifacts/adapters/gemma3-12b-mischar-v1
+    backend: modal
+    base_model_id: google/gemma-3-12b-it
+    adapter_name: gemma3-12b-mischar-v2
+  # Prompted baseline on identical Modal infrastructure (no adapter).
+  gemma27b-prompted-modal:
+    backend: modal
+    base_model_id: google/gemma-3-27b-it
+    adapter_name: ""
   gemini-3.1-pro:
     backend: gemini
     api_model: gemini-3.1-pro
@@ -48,7 +56,7 @@ llm_timeout_seconds: 120
 
 # Prompt versions — bump when prompt content changes
 attribution_prompt_version: v1.0
-classification_prompt_version: v1.0
+classification_prompt_version: v2.0
 
 # Logging
 log_level: INFO

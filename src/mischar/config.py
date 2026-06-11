@@ -32,7 +32,7 @@ from mischar.constants import (
 class ModelConfig(BaseModel):
     """Configuration for a single model backend."""
 
-    backend: str  # "ollama", "mlx", or "gemini"
+    backend: str  # "ollama", "mlx", "gemini", or "modal"
 
     # Ollama fields
     ollama_model: str | None = None
@@ -44,16 +44,20 @@ class ModelConfig(BaseModel):
     # Gemini fields
     api_model: str | None = None
 
-    # This project uses three backends: ollama, mlx, and gemini. This function
-    # ensures that there is no attempt to use a backend other than these three
+    # Modal fields (remote inference of fine-tuned adapters)
+    base_model_id: str | None = None
+    adapter_name: str | None = None
+
+    # This project uses four backends: ollama, mlx, gemini, and modal. This
+    # function ensures that there is no attempt to use any other backend.
     @field_validator("backend")
     @classmethod
     def validate_backend(cls, v: str) -> str:
-        allowed = {"ollama", "mlx", "gemini"}
+        allowed = {"ollama", "mlx", "gemini", "modal"}
 
         if v not in allowed:
             raise ValueError(f"backend must be one of {allowed}, got '{v}'")
-        
+
         return v
 
 
@@ -107,7 +111,7 @@ class Config(BaseModel):
 
     # Prompt versions
     attribution_prompt_version: str = "v1.0"
-    classification_prompt_version: str = "v1.0"
+    classification_prompt_version: str = "v2.0"
 
     # Logging
     log_level: str = "INFO"
