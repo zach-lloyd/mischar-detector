@@ -75,8 +75,10 @@ ADAPTER_OUTPUT_PATH = "/adapters"
 GPU_TYPE = "H100"
 GPU_COUNT = 1
 
-# 6 hours gives comfortable headroom.
-TRAINING_TIMEOUT_SECONDS = 6 * 60 * 60
+# 10 hours of headroom — long-context (8192) runs can be slow, and the
+# timeout is only a ceiling (billing is per actual second used), so a
+# generous limit costs nothing unless a run genuinely needs the time.
+TRAINING_TIMEOUT_SECONDS = 10 * 60 * 60
 
 # ---------------------------------------------------------------------------
 # Constants — overrides from the primary entrypoint
@@ -103,7 +105,7 @@ PER_DEVICE_TRAIN_BATCH = 4
 GRADIENT_ACCUMULATION_STEPS = 4
 WARMUP_RATIO = 0.03
 LR_SCHEDULER = "cosine"
-MAX_LENGTH = 2048
+MAX_LENGTH = 8192
 EVAL_STEPS = 500
 SAVE_STEPS = 500
 LOGGING_STEPS = 50

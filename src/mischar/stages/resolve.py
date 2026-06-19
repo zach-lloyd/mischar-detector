@@ -62,7 +62,7 @@ class CourtListenerClient:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://www.courtlistener.com/api/rest/v3/",
+        base_url: str = "https://www.courtlistener.com/api/rest/v4/",
         rate_limit_per_minute: int = 60,
         max_retries: int = 5,
         timeout_seconds: int = 30,
@@ -91,60 +91,90 @@ class CourtListenerClient:
 
     def lookup_citation(self, citation: ParsedCitation) -> dict | None:
         """
-        Search CourtListener for a case matching the given citation.
+        Resolve a citation to a CourtListener cluster via the dedicated
+        Citation Lookup API (``/citation-lookup/``).
 
-        Queries the citation-lookup endpoint using volume, reporter, and
-        page. Returns the first matching case record as a dict, or None
-        if no match is found.
+        Unlike a relevance-ranked search, this endpoint performs an
+        *exact* citation match using Eyecite, so it returns the specific
+        case for the given volume/reporter/page rather than the most
+        popular hit. This avoids attaching the wrong opinion to a claim.
 
         Args:
             citation: The parsed citation to look up.
 
         Returns:
-            A dict containing case metadata (id, case_name, court, etc.)
-            from CourtListener, or None if no matching case exists.
+            The matched CourtListener cluster object as a dict (which
+            includes ``id``, ``case_name``, ``date_filed``, etc.), or
+            None if the citation was not found, invalid, or ambiguous.
 
         Raises:
             CourtListenerAPIError: On infrastructure failure after retries.
         """
-        # Build the search query from the citation's components.
-        # CourtListener's citation lookup uses volume, reporter, and page.
-        params = {
-            "cite": f"{citation.volume} {citation.reporter} {citation.page}",
+        # The citation-lookup endpoint takes the volume/reporter/page
+        # triad directly and normalizes the reporter internally.
+        payload = {
+            "volume": citation.volume,
+            "reporter": citation.reporter,
+            "page": citation.page,
         }
+        cite_str = f"{citation.volume} {citation.reporter} {citation.page}"
 
         log.debug(
             "courtlistener_lookup",
-            cite=params["cite"],
+            cite=cite_str,
             case_name=citation.case_name,
         )
 
-        data = self._get("search/", params=params)
+        # Returns a list with one entry per parsed citation. We send a
+        # single citation, so we expect at most one entry.
+        results = self._post("citation-lookup/", data=payload)
 
-        # CourtListener returns a paginated result list. If no results,
-        # the case wasn't found.
-        results = data.get("results", [])
         if not results:
-            log.info("courtlistener_not_found", cite=params["cite"])
+            log.info("courtlistener_not_found", cite=cite_str)
 
             return None
 
-        # Return the first (best) match. CourtListener ranks results
-        # by relevance, so the first result is typically correct.
-        return results[0]
+        entry = results[0]
+        status = entry.get("status")
+        clusters = entry.get("clusters", [])
+
+        # status 200 = found and looked up exactly once. Anything else
+        # (404 not found, 400 invalid reporter, 300 multiple/ambiguous
+        # matches) we treat as unresolved and drop, rather than risk
+        # attaching the wrong case to a claim.
+        if status != 200 or not clusters:
+            log.info(
+                "courtlistener_not_resolved",
+                cite=entry.get("citation", cite_str),
+                status=status,
+                n_clusters=len(clusters),
+                error=entry.get("error_message", ""),
+            )
+
+            return None
+
+        # Exact match — return the single matched cluster.
+        return clusters[0]
 
 
-    def fetch_opinion_text(self, cluster_id: str) -> str | None:
+    def fetch_opinion_text(self, cluster: dict) -> str | None:
         """
-        Fetch the full opinion text for a case.
+        Fetch the full opinion text for a resolved cluster.
 
         CourtListener organizes opinions under "clusters" (a case can have
         multiple opinions — majority, dissent, concurrence). We fetch all
         opinions in the cluster and concatenate them, since the pipeline
         needs to search across the full text.
 
+        The cluster object returned by the citation-lookup endpoint already
+        embeds the ``sub_opinions`` list, so we read it directly and skip a
+        redundant ``clusters/{id}/`` round-trip. If the passed object lacks
+        that list (e.g. a differently-shaped cluster), we fall back to
+        fetching the cluster record once.
+
         Args:
-            cluster_id: The CourtListener opinion cluster ID.
+            cluster: The CourtListener cluster object (as returned by
+                ``lookup_citation``), containing ``id`` and ``sub_opinions``.
 
         Returns:
             The full opinion text as a string, or None if no text is
@@ -153,11 +183,18 @@ class CourtListenerClient:
         Raises:
             CourtListenerAPIError: On infrastructure failure after retries.
         """
+        cluster_id = cluster.get("id")
         log.debug("courtlistener_fetch_opinion", cluster_id=cluster_id)
 
-        # Fetch the cluster to get its list of sub-opinions.
-        cluster_data = self._get(f"clusters/{cluster_id}/")
-        sub_opinion_urls = cluster_data.get("sub_opinions", [])
+        # The citation-lookup cluster object already carries the sub-opinion
+        # URLs, so no extra request is needed in the common case.
+        sub_opinion_urls = cluster.get("sub_opinions", [])
+
+        # Fallback: if the embedded object didn't include sub_opinions, fetch
+        # the cluster record directly (the pre-optimization behavior).
+        if not sub_opinion_urls and cluster_id is not None:
+            cluster_data = self._get(f"clusters/{cluster_id}/")
+            sub_opinion_urls = cluster_data.get("sub_opinions", [])
 
         if not sub_opinion_urls:
             log.info("courtlistener_no_opinions", cluster_id=cluster_id)
@@ -278,6 +315,64 @@ class CourtListenerClient:
         return response.json()
 
 
+    def _post(self, endpoint: str, data: dict | None = None) -> list | dict:
+        """
+        Make a rate-limited, retried POST request to CourtListener.
+
+        Same retry and rate-limit semantics as :meth:`_get`, but sends
+        form data via POST. Used for the citation-lookup endpoint, which
+        returns a JSON list (one entry per parsed citation).
+
+        Args:
+            endpoint: The CourtListener API endpoint to call.
+            data: Form fields to send in the POST body.
+
+        Returns:
+            The parsed JSON response (a list for citation-lookup), or an
+            empty list on a 404.
+        """
+        self._enforce_rate_limit()
+        url = f"{self._base_url}/{endpoint.lstrip('/')}"
+
+        def _call() -> httpx.Response:
+            response = self._http.post(url, data=data)
+
+            # 429 = rate limited, 5xx = server error. Both are retryable.
+            if response.status_code == 429:
+                raise CourtListenerAPIError(
+                    f"Rate limited (429) on {endpoint}"
+                )
+            if response.status_code >= 500:
+                raise CourtListenerAPIError(
+                    f"Server error ({response.status_code}) on {endpoint}"
+                )
+
+            if response.status_code == 404:
+                return response
+
+            # Any other non-2xx is unexpected.
+            response.raise_for_status()
+
+            return response
+
+        try:
+            response = retry_with_backoff(
+                _call,
+                max_retries=self._max_retries,
+                retryable_exceptions=(CourtListenerAPIError, httpx.HTTPError),
+                context=f"courtlistener {endpoint}",
+            )
+        except (CourtListenerAPIError, httpx.HTTPError) as exc:
+            raise CourtListenerAPIError(
+                f"CourtListener API request failed after retries: {exc}"
+            ) from exc
+
+        if response.status_code == 404:
+            return []
+
+        return response.json()
+
+
     def _enforce_rate_limit(self) -> None:
         """
         Sleep if needed to stay within the per-minute rate limit.
@@ -369,8 +464,10 @@ def resolve_citation(
     # Parse the decision date if available.
     decided_at = _parse_date(case_record.get("dateFiled") or case_record.get("date_filed"))
 
-    # Step 2: Fetch the full opinion text.
-    full_text = client.fetch_opinion_text(cluster_id)
+    # Step 2: Fetch the full opinion text. Pass the cluster object we
+    # already have so fetch_opinion_text can reuse its embedded
+    # sub_opinions list instead of re-fetching the cluster.
+    full_text = client.fetch_opinion_text(case_record)
     if not full_text:
         result = Abstention(
             reason="text-not-retrieved",

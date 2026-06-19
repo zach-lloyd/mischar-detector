@@ -52,10 +52,15 @@ from mischar.config import load_config, load_secrets
 from mischar.data.datasets import load_casehold, validate_labels
 from mischar.data.splits import assign_splits
 from mischar.logging import configure_logging, get_logger
+from mischar.models.client import ModelClientError
 from mischar.models.embedding import EmbeddingClient
 from mischar.prompts.classification import build_classification_prompt
 from mischar.stages.parse import parse_citations
-from mischar.stages.resolve import CourtListenerClient, resolve_citation
+from mischar.stages.resolve import (
+    CourtListenerAPIError,
+    CourtListenerClient,
+    resolve_citation,
+)
 from mischar.stages.retrieve import (
     chunk_opinion,
     embed_chunks,
@@ -356,42 +361,64 @@ def main() -> None:
     for i, entry_id in enumerate(entry_ids):
         pair = pairs[entry_id]
 
-        # Resolve once per entry — both pair members cite the same case.
-        case = _resolve_entry_case(pair[0].citation_text, courtlistener_client, cache)
-        if case is None:
-            drop_reasons["resolution_failed"] += 1
+        try:
+            # Resolve once per entry — both pair members cite the same case.
+            case = _resolve_entry_case(pair[0].citation_text, courtlistener_client, cache)
+            if case is None:
+                drop_reasons["resolution_failed"] += 1
+                continue
+
+            pair_records = []
+            for example in pair:
+                record = _build_record(
+                    example,
+                    case,
+                    embedding_client,
+                    cache,
+                    chunk_max_tokens=config.chunk_max_tokens,
+                    chunk_overlap_paragraphs=config.chunk_overlap_paragraphs,
+                    top_k=config.top_k,
+                )
+                if record is None:
+                    break
+
+                pair_records.append(record)
+
+            if len(pair_records) != 2:
+                drop_reasons["record_build_failed"] += 1
+                continue
+
+            # Label-noise guard: if the accurate example's claim doesn't match
+            # anything in the retrieved excerpts, drop the whole pair.
+            accurate_record = next(r for r in pair_records if r["label"] == "accurate")
+            accurate_scores.append(accurate_record["top_retrieval_score"])
+
+            if accurate_record["top_retrieval_score"] < args.min_retrieval_score:
+                drop_reasons["low_retrieval_score"] += 1
+                continue
+
+            records.extend(pair_records)
+
+        except (CourtListenerAPIError, ModelClientError) as exc:
+            # Transient infrastructure failure (CourtListener or Voyage) after
+            # retries were exhausted. Drop this one entry and keep going, so a
+            # single hiccup can't abort a long unattended build.
+            log.warning("entry_infra_error", entry_id=entry_id, error=str(exc))
+            drop_reasons["infra_error"] += 1
             continue
 
-        pair_records = []
-        for example in pair:
-            record = _build_record(
-                example,
-                case,
-                embedding_client,
-                cache,
-                chunk_max_tokens=config.chunk_max_tokens,
-                chunk_overlap_paragraphs=config.chunk_overlap_paragraphs,
-                top_k=config.top_k,
+        except Exception as exc:
+            # Any other unexpected per-entry error. Don't let it kill the whole
+            # run, but log it loudly and track it under its own bucket so a
+            # systemic bug shows up clearly in the final drop summary.
+            log.error(
+                "entry_unexpected_error",
+                entry_id=entry_id,
+                error=str(exc),
+                exc_info=True,
             )
-            if record is None:
-                break
-
-            pair_records.append(record)
-
-        if len(pair_records) != 2:
-            drop_reasons["record_build_failed"] += 1
+            drop_reasons["unexpected_error"] += 1
             continue
-
-        # Label-noise guard: if the accurate example's claim doesn't match
-        # anything in the retrieved excerpts, drop the whole pair.
-        accurate_record = next(r for r in pair_records if r["label"] == "accurate")
-        accurate_scores.append(accurate_record["top_retrieval_score"])
-
-        if accurate_record["top_retrieval_score"] < args.min_retrieval_score:
-            drop_reasons["low_retrieval_score"] += 1
-            continue
-
-        records.extend(pair_records)
 
         if (i + 1) % 100 == 0:
             print(

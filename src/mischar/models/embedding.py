@@ -16,6 +16,29 @@ from mischar.types import Embedding
 
 log = get_logger("embedding")
 
+# Voyage enforces two per-batch limits: a maximum total token count
+# (120,000 for voyage-law-2) and a maximum number of texts (1,000). We
+# stay conservatively under both — the token figure is a chars/4 estimate,
+# so the headroom absorbs estimation error.
+_MAX_TOKENS_PER_BATCH = 100_000
+_MAX_TEXTS_PER_BATCH = 1_000
+
+
+def _estimate_tokens(text: str) -> int:
+    """
+    Rough token estimate (~4 characters per token).
+
+    Matches the heuristic used by the chunker so batch sizing is
+    consistent across the pipeline.
+
+    Args:
+        text: The text to estimate.
+
+    Returns:
+        Estimated token count (at least 1).
+    """
+    return max(1, len(text) // 4)
+
 
 class EmbeddingClient:
     """
@@ -73,7 +96,53 @@ class EmbeddingClient:
         if not texts:
             return []
 
+        # Split into sub-batches that respect Voyage's per-batch token and
+        # count limits, embed each, and concatenate in order. A single
+        # opinion can produce 100+ chunks whose combined tokens exceed the
+        # 120k batch cap, so one big request would otherwise fail.
+        embeddings: list[Embedding] = []
+        batch: list[str] = []
+        batch_tokens = 0
 
+        for text in texts:
+            text_tokens = _estimate_tokens(text)
+
+            # Flush the current batch before it would exceed either limit.
+            if batch and (
+                batch_tokens + text_tokens > _MAX_TOKENS_PER_BATCH
+                or len(batch) >= _MAX_TEXTS_PER_BATCH
+            ):
+                embeddings.extend(self._embed_batch(batch, input_type))
+                batch = []
+                batch_tokens = 0
+
+            batch.append(text)
+            batch_tokens += text_tokens
+
+        if batch:
+            embeddings.extend(self._embed_batch(batch, input_type))
+
+        return embeddings
+
+
+    def _embed_batch(
+        self,
+        texts: list[str],
+        input_type: Literal["document", "query"],
+    ) -> list[Embedding]:
+        """
+        Embed a single batch that already fits within Voyage's limits.
+
+        Args:
+            texts: The texts for one API call (within token/count caps).
+            input_type: Either "document" or "query".
+
+        Returns:
+            The embedding vectors for this batch, in input order.
+
+        Raises:
+            ModelClientError: If the Voyage API fails after retries.
+        """
         def _call():
             return self._client.embed(
                 texts=texts,

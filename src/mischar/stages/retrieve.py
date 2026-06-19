@@ -15,6 +15,8 @@ a 50-page opinion to the LLM, we feed it the 5 most relevant chunks.
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 
 from mischar.cache import Cache
@@ -68,6 +70,16 @@ def chunk_opinion(
 
     if not paragraphs:
         return []
+
+    # Pre-split any single paragraph that already exceeds the token cap, so
+    # the packing loop below can never emit an oversized chunk. Opinions
+    # whose text has few "\n\n" breaks (e.g. HTML-stripped text) would
+    # otherwise collapse into one giant "paragraph" and become a single
+    # massive chunk.
+    expanded_paragraphs: list[str] = []
+    for para in paragraphs:
+        expanded_paragraphs.extend(_split_long_paragraph(para, max_tokens))
+    paragraphs = expanded_paragraphs
 
     chunks = []
     chunk_index = 0
@@ -313,6 +325,74 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
         return 0.0
 
     return float(dot / (norm_a * norm_b))
+
+
+_SENTENCE_RE = re.compile(r"[^.!?]*[.!?]+(?:\s+|$)|[^.!?]+$")
+
+
+def _pack_units(units: list[str], max_tokens: int) -> list[str]:
+    """
+    Greedily pack text units into pieces of at most ``max_tokens``.
+
+    Args:
+        units: Text units (sentences or words) to pack, in order.
+        max_tokens: Maximum approximate tokens per packed piece.
+
+    Returns:
+        A list of packed pieces, each at or under the token limit
+        (a single unit that exceeds the limit is emitted on its own).
+    """
+    pieces: list[str] = []
+    current = ""
+
+    for unit in units:
+        unit = unit.strip()
+        if not unit:
+            continue
+
+        candidate = f"{current} {unit}".strip() if current else unit
+        if current and _estimate_tokens(candidate) > max_tokens:
+            pieces.append(current)
+            current = unit
+        else:
+            current = candidate
+
+    if current:
+        pieces.append(current)
+
+    return pieces
+
+
+def _split_long_paragraph(paragraph: str, max_tokens: int) -> list[str]:
+    """
+    Split a paragraph that exceeds ``max_tokens`` into smaller pieces.
+
+    Splits on sentence boundaries and greedily repacks them; any single
+    sentence still over the limit is further split on word boundaries.
+    Paragraphs already within the limit are returned unchanged. This
+    prevents a single oversized "paragraph" from becoming one giant chunk.
+
+    Args:
+        paragraph: The paragraph text to (possibly) split.
+        max_tokens: Maximum approximate tokens per resulting piece.
+
+    Returns:
+        A list of pieces, each at or under the token limit.
+    """
+    if _estimate_tokens(paragraph) <= max_tokens:
+        return [paragraph]
+
+    sentences = [s for s in _SENTENCE_RE.findall(paragraph) if s.strip()]
+
+    # Break any sentence that is itself over the limit into words first.
+    units: list[str] = []
+    for sentence in sentences:
+        if _estimate_tokens(sentence) <= max_tokens:
+            units.append(sentence)
+        else:
+            units.extend(_pack_units(sentence.split(), max_tokens))
+
+    return _pack_units(units, max_tokens)
 
 
 def _estimate_tokens(text: str) -> int:

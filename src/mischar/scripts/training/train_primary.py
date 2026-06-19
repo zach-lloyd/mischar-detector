@@ -72,8 +72,10 @@ ADAPTER_OUTPUT_PATH = "/adapters"
 GPU_TYPE = "H100"
 GPU_COUNT = 1
 
-# 6 hours gives comfortable headroom for 27B QLoRA over ~10K examples.
-TRAINING_TIMEOUT_SECONDS = 6 * 60 * 60
+# 10 hours of headroom for 27B QLoRA at the 8192 sequence length. The
+# timeout is only a ceiling (billing is per actual second used), so a
+# generous limit costs nothing unless a run genuinely needs the time.
+TRAINING_TIMEOUT_SECONDS = 10 * 60 * 60
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -102,7 +104,7 @@ PER_DEVICE_TRAIN_BATCH = 2
 GRADIENT_ACCUMULATION_STEPS = 8
 WARMUP_RATIO = 0.03  # 3% of total steps
 LR_SCHEDULER = "cosine"
-MAX_LENGTH = 2048
+MAX_LENGTH = 8192
 EVAL_STEPS = 500
 SAVE_STEPS = 500
 LOGGING_STEPS = 50
