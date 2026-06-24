@@ -223,4 +223,6 @@ cache/
 data/raw/
 data/processed/
 artifacts/
-eval_runs/
+eval_runs/data/training/
+data/training/train.jsonl
+data/training/

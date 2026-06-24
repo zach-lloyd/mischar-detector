@@ -33,8 +33,6 @@ Usage:
     modal run src/mischar/scripts/inference/serve_adapter.py
 """
 
-from __future__ import annotations
-
 import modal
 
 # ---------------------------------------------------------------------------
