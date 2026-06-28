@@ -1,0 +1,71 @@
+{
+  "run_id": "cfb59a2c-0512-40f2-94c8-dfda2a2ec7fc",
+  "timestamp": "2026-06-24T00:45:08.701134+00:00",
+  "models": [
+    "gemma12b-prompted-modal",
+    "gemma12b-tuned"
+  ],
+  "sources": [
+    "real_brief"
+  ],
+  "results": {
+    "real_brief": {
+      "gemma12b-prompted-modal": {
+        "metrics": {
+          "macro_f1": 0.5,
+          "per_label": {
+            "accurate": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "mischaracterized": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 4
+            }
+          },
+          "confusion_matrix": {
+            "mischaracterized->mischaracterized": 4
+          },
+          "abstention_rate": 0.6,
+          "abstention_by_reason": {
+            "parsing-failed": 3,
+            "case-not-found": 3
+          },
+          "n_examples": 10
+        }
+      },
+      "gemma12b-tuned": {
+        "metrics": {
+          "macro_f1": 0.5,
+          "per_label": {
+            "accurate": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            "mischaracterized": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 4
+            }
+          },
+          "confusion_matrix": {
+            "mischaracterized->mischaracterized": 4
+          },
+          "abstention_rate": 0.6,
+          "abstention_by_reason": {
+            "parsing-failed": 3,
+            "case-not-found": 3
+          },
+          "n_examples": 10
+        }
+      }
+    }
+  }
+}

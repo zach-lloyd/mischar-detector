@@ -1,0 +1,10 @@
+{"example_id": "charlotin-001", "predicted_label": null, "abstention_reason": "parsing-failed", "confidence": null, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": false}
+{"example_id": "charlotin-002", "predicted_label": null, "abstention_reason": "case-not-found", "confidence": null, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": false}
+{"example_id": "charlotin-003", "predicted_label": "mischaracterized", "abstention_reason": null, "confidence": 0.5, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": true}
+{"example_id": "charlotin-004", "predicted_label": null, "abstention_reason": "parsing-failed", "confidence": null, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": false}
+{"example_id": "charlotin-005", "predicted_label": null, "abstention_reason": "parsing-failed", "confidence": null, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": false}
+{"example_id": "charlotin-006", "predicted_label": null, "abstention_reason": "case-not-found", "confidence": null, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": false}
+{"example_id": "charlotin-007", "predicted_label": null, "abstention_reason": "case-not-found", "confidence": null, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": false}
+{"example_id": "charlotin-008", "predicted_label": "mischaracterized", "abstention_reason": null, "confidence": 0.5, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": true}
+{"example_id": "charlotin-009", "predicted_label": "mischaracterized", "abstention_reason": null, "confidence": 0.5, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": true}
+{"example_id": "charlotin-010", "predicted_label": "mischaracterized", "abstention_reason": null, "confidence": 0.5, "used_gold_claim": false, "gold_label": "mischaracterized", "correct": true}

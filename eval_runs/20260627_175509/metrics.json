@@ -1,0 +1,77 @@
+{
+  "run_id": "9c1b40f8-46c0-4aec-9b62-1eac26fa8b28",
+  "timestamp": "2026-06-27T17:55:09.908678+00:00",
+  "models": [
+    "gemma12b-prompted-modal",
+    "gemma12b-tuned"
+  ],
+  "sources": [
+    "real_brief"
+  ],
+  "results": {
+    "real_brief": {
+      "gemma12b-prompted-modal": {
+        "metrics": {
+          "macro_f1": 0.6928104575163399,
+          "per_label": {
+            "accurate": {
+              "precision": 0.9393939393939394,
+              "recall": 0.4492753623188406,
+              "f1": 0.6078431372549019,
+              "support": 69
+            },
+            "mischaracterized": {
+              "precision": 0.6481481481481481,
+              "recall": 0.9722222222222222,
+              "f1": 0.7777777777777778,
+              "support": 72
+            }
+          },
+          "confusion_matrix": {
+            "accurate->accurate": 31,
+            "accurate->mischaracterized": 38,
+            "mischaracterized->accurate": 2,
+            "mischaracterized->mischaracterized": 70
+          },
+          "abstention_rate": 0.25396825396825395,
+          "abstention_by_reason": {
+            "parsing-failed": 13,
+            "case-not-found": 35
+          },
+          "n_examples": 189
+        }
+      },
+      "gemma12b-tuned": {
+        "metrics": {
+          "macro_f1": 0.8293666801129488,
+          "per_label": {
+            "accurate": {
+              "precision": 0.8461538461538461,
+              "recall": 0.7971014492753623,
+              "f1": 0.8208955223880597,
+              "support": 69
+            },
+            "mischaracterized": {
+              "precision": 0.8157894736842105,
+              "recall": 0.8611111111111112,
+              "f1": 0.8378378378378378,
+              "support": 72
+            }
+          },
+          "confusion_matrix": {
+            "accurate->accurate": 55,
+            "accurate->mischaracterized": 14,
+            "mischaracterized->accurate": 10,
+            "mischaracterized->mischaracterized": 62
+          },
+          "abstention_rate": 0.25396825396825395,
+          "abstention_by_reason": {
+            "parsing-failed": 13,
+            "case-not-found": 35
+          },
+          "n_examples": 189
+        }
+      }
+    }
+  }
+}
