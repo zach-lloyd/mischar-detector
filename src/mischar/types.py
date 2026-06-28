@@ -198,7 +198,7 @@ class EvalExample:
     passage: str
     citation_text: str
     gold_label: Literal["accurate", "mischaracterized"]
-    gold_claim: str | None  # only present for real_brief set (dual evaluation)
+    gold_claim: str | None # Only used if real brief examples are lengthy passages that require LLM-automated claim extraction
     split: Literal["train", "val", "test"]
     metadata: dict = field(default_factory=dict)
 
