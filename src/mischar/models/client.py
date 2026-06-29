@@ -23,8 +23,7 @@ log = structlog.get_logger("models")
 # Protocol — the contract all backends must satisfy
 # ---------------------------------------------------------------------------
 
-# Use a Protocol for easier type checking. If we just use an independent class 
-# for each model, we'd have to use something like this
+# Use a Protocol for easier type checking.
 class ModelClient(Protocol):
     """
     Common interface across Ollama, MLX, and Gemini backends.
