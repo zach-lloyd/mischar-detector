@@ -148,9 +148,9 @@ def _compute_macro_f1(
     Compute macro-averaged F1 across all labels.
 
     Macro averaging gives equal weight to each label regardless of
-    support. CaseHOLD-derived data is balanced by construction (one
-    accurate + one mischaracterized example per entry), but the
-    real-brief test set may not be, so macro averaging still matters.
+    the number of examples with that label. CaseHOLD-derived data is balanced 
+    by construction (one accurate + one mischaracterized example per entry), 
+    but the real-brief test set may not be, so macro averaging still matters.
 
     Args:
         y_true: Ground-truth label strings.
