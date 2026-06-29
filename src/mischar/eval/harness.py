@@ -3,19 +3,25 @@ Evaluation harness.
 
 Wraps the ``Pipeline`` to run it over evaluation datasets and collect
 structured predictions. Handles the dual-evaluation flow for real_brief
-examples. real_brief examples are hand annotated with a "gold claim", a 
+examples. real_brief examples can be hand annotated with a "gold claim", a 
 human judgment of what the brief is asserting with respect to the cited case. 
 In these cases, the evaluation harness runs once with the pipeline's attributed 
 claim and once with the gold claim substituted in. The purpose of this is to determine, 
 if the pipeline gets a classification wrong, whether that is because the attribution 
 stage extracted a bad claim or because the classifier mislabeled a correctly extracted 
 claim.
+
+However, note that depending on how the real_brief examples are structured, this
+dual evaluation process may not be necessary. With my first 189 examples, the passages
+are all one to two sentences, which make it straightforward to determine what the brief
+is asserting with respect to the cited case. In other words, the gold claim is just the
+passage itself, so there is no need to include a separate gold_claim attribute. Where
+that is the case, the dual evaluation process is skipped.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import dataclass
 
 from mischar.eval.metrics import compute_metrics
 from mischar.logging import get_logger
