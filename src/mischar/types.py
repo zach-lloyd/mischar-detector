@@ -19,15 +19,6 @@ from mischar.constants import PIPELINE_VERSION
 
 
 @dataclass
-class Pincite:
-    """A pinpoint citation within a case (e.g., 'at 462')."""
-
-    raw: str
-    page_number: int
-    paragraph_number: int | None = None
-
-
-@dataclass
 class ParsedCitation:
     """
     A citation extracted from a passage by eyecite.
@@ -41,7 +32,6 @@ class ParsedCitation:
     reporter: str
     volume: int
     page: int
-    pincite: Pincite | None
     court: str | None
     year: int | None
     position_in_passage: tuple[int, int]  # (start_char, end_char)

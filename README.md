@@ -10,7 +10,7 @@ Fine-tuning Gemma 3 12B on accurate and mischaracterized legal holdings generate
   <img src="assets/results-real-brief.svg" alt="Fine-tuned vs. prompted baseline on real briefs" width="720">
 </p>
 
-## The Problem
+## Problem
 
 LLM hallucinations in legal filings are a growing problem that even the most prestigious law firms have fallen victim to (see, e.g., [Sullivan & Cromwell law firm apologizes for AI 'hallucinations' in court filing](https://www.reuters.com/legal/litigation/sullivan-cromwell-law-firm-apologizes-ai-hallucinations-court-filing-2026-04-21/)). These hallucinations manifest themselves in a few different ways. Sometimes, the LLM will cite to a case or statute that simply does not exist at all. Other times, the LLM might provide a fabricated quote from a real case. However, arguably the most pernicious category of legal hallucinations is mischaracterizations: when the LLM cites to a real legal authority, does not fabricate a quote, but cites the authority in support of a proposition or claim that the authority actually does not support. Consider the following two citations to Roe v. Wade:
 
@@ -22,9 +22,11 @@ The first is accurate, but the second is not fully supported by the holding in R
 
 These types of hallucinations are especially pernicious because they can be so hard to detect. For those not intimately familiar with a cited case, determining whether the citation mischaracterizes the case's holding requires locating the court's opinion and carefully reviewing it against the citation, a process that can quickly become cumbersome and inefficient for judges charged with reviewing numerous briefs, each containing numerous citations.
 
-## The Potential Solution
+## Potential Solution
 
 Train an LLM on accurate and mischaracterized descriptions of legal holdings and use it to classify citations as either "Accurate" or "Mischaracterized". Through fine-tuning, an open-source model can be trained on domain-specific data, with the goal of improving its performance on a specific task. Here, I train Gemma 3 12B on a dataset of accurate and mischaracterized legal holdings sourced from the CaseHOLD dataset and then test whether the fine-tuned model outperforms the base model at classifying citations as "Accurate" or "Mischaracterized".
+
+I chose Gemma 3 12B for this project because it is a high-quality open-weight model that, because it is developed by an American company (Alphabet/Google), does not present as many significant security issues as Chinese open-weight models like Qwen and DeepSeek. It is also built on Gemini technology and has both larger and smaller variants, thus presenting future opportunities to compare performance of small vs medium vs large vs frontier-sized variants within the same family of models.
 
 ## Pipeline Architecture
 
@@ -65,5 +67,12 @@ flowchart TB
 ## Data
 
 **Training/Evaluation Data:** 6,894 examples sourced from 3,447 entries from the CaseHOLD dataset. For each entry, one "Accurate" example is created using the correct holding, and one "Mischaracterized" example is created by randomly choosing one of the incorrect holdings (each CaseHOLD entry is in multiple choice format). The examples are split 85/15 between the training and evaluation sets. Each pair derived from a CaseHOLD entry is assigned to one set; pairs are never split between the training and evaluation sets.
+
+## Future Work/Improvements
+
+- Compare fine-tuned Gemma 3 12B to Gemma 3 4B, Gemma 3 27B, and Gemini 3.1 Pro.
+- Replace Gemma 3 models with the newly-released Gemma 4 models to see whether the result still holds.
+- Analyze and revise real brief test set to reduce abstention rate.
+- Expand size fo real brief test set for more robust performance analysis.
   
 

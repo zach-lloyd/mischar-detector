@@ -32,7 +32,6 @@ class OllamaClient:
         model_name: The Ollama model tag (e.g. ``"gemma3:27b"``).
         base_url: Ollama server URL. Defaults to localhost on the standard port.
         timeout_seconds: How long to wait for a response before giving up.
-            Local 27B inference on an M3 Max can take a while on long prompts.
     """
 
     def __init__(

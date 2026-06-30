@@ -105,7 +105,7 @@ class MLXClient:
         instruction to the prompt asking for JSON output, then parse
         the result. The fine-tuned model should reliably produce valid
         JSON since it was trained on structured output examples, but the 
-        prompted baseline may shakier, which is why fallback options are 
+        prompted baseline may be shakier, which is why fallback options are 
         included in the parse_json_response function.
 
         Args:

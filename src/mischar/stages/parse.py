@@ -2,7 +2,7 @@
 Stage 1: Citation parsing via eyecite.
 
 Extracts legal citations from a passage of text, producing ``ParsedCitation``
-objects with structured components (reporter, volume, page, pincite, etc.)
+objects with structured components (reporter, volume, page, etc.)
 and character-level positions within the source passage.
 
 This is a pure function with no external dependencies beyond eyecite — no
@@ -17,7 +17,7 @@ from eyecite import get_citations
 from eyecite.models import FullCaseCitation
 
 from mischar.logging import get_logger
-from mischar.types import ParsedCitation, Pincite
+from mischar.types import ParsedCitation
 
 log = get_logger("parse")
 
@@ -110,9 +110,6 @@ def _convert_eyecite(cite: FullCaseCitation, passage: str) -> ParsedCitation | N
 
         return None
 
-    # Extract pincite if present (e.g. "at 462" or ", 462").
-    pincite = _extract_pincite(cite)
-
     # Extract metadata fields. These may be None depending on how
     # much information eyecite could parse from the citation string.
     case_name = _extract_case_name(cite)
@@ -125,57 +122,10 @@ def _convert_eyecite(cite: FullCaseCitation, passage: str) -> ParsedCitation | N
         reporter=reporter,
         volume=volume,
         page=page,
-        pincite=pincite,
         court=court,
         year=year,
         position_in_passage=position,
     )
-
-
-def _extract_pincite(cite: FullCaseCitation) -> Pincite | None:
-    """
-    Extract a pinpoint citation (specific page reference) if present.
-
-    eyecite parses pincites from the citation string and stores them
-    in ``metadata.pin_cite``. Pincites look like "123 F.3d 456, 462"
-    or "123 F.3d 456, at 462" in the raw citation text.
-
-    We extract the numeric page number from eyecite's parsed string,
-    and check for paragraph-level pincites (¶ notation).
-
-    Args:
-        cite: The eyecite citation object.
-
-    Returns:
-        A ``Pincite`` with page number (and optional paragraph number),
-        or None if no pincite is present. None is normal — many
-        citations reference a case generally rather than a specific page.
-    """
-    try:
-        pin = cite.metadata.pin_cite
-        if not pin:
-            return None
-
-        # Extract the page number from the pincite string.
-        # Pincites can be "462", "at 462", "at 462-63", "at *5", etc.
-        # We try to get the first numeric value.
-        page_match = re.search(r"(\d+)", pin)
-        if not page_match:
-            return None
-
-        page_number = int(page_match.group(1))
-
-        # Check for paragraph-level pincites (¶ or "para.").
-        para_match = re.search(r"[¶]\s*(\d+)", pin)
-        paragraph_number = int(para_match.group(1)) if para_match else None
-
-        return Pincite(
-            raw=pin,
-            page_number=page_number,
-            paragraph_number=paragraph_number,
-        )
-    except (AttributeError, ValueError):
-        return None
 
 
 def _extract_case_name(cite: FullCaseCitation) -> str | None:
