@@ -92,7 +92,9 @@ The precision, recall, and F1 of each model was as follows:
 
 *n = 141 classified of 189 (25.4% abstention, identical for both models since it happens upstream of the classifier). Baseline = Gemma 3 12B prompted; fine-tuned = the same base model with the QLoRA adapter. Macro F1 weights both classes equally regardless of support.*
 
-The improvement comes mainly from recall on the accurate class (0.45 → 0.80): the prompted baseline tends to default to "mischaracterized" and misses more than half the genuinely accurate citations, while fine-tuning rebalances the model without giving up much on the mischaracterized class.
+The improvement comes mainly from recall on the accurate class (0.45 → 0.80): the prompted baseline tends to default to "mischaracterized" and misses more than half the genuinely accurate citations, while fine-tuning rebalances the model without giving up much on the mischaracterized class. The below confusion matrix illustrates that:
+
+![Confusion matrices: prompted baseline vs. fine-tuned](assets/confusion-matrices.svg)
 
 ## Future Work/Improvements
 

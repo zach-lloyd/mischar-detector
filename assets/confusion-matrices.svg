@@ -1,0 +1,44 @@
+<svg viewBox="0 0 760 334" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" role="img" aria-labelledby="cmttl cmdesc">
+  <title id="cmttl">Confusion matrices: prompted baseline vs. fine-tuned</title>
+  <desc id="cmdesc">Two 2x2 confusion matrices, rows are actual labels and columns are predicted. Baseline: actual accurate predicted accurate 31, predicted mischaracterized 38; actual mischaracterized predicted accurate 2, predicted mischaracterized 70. Fine-tuned: actual accurate predicted accurate 55, predicted mischaracterized 14; actual mischaracterized predicted accurate 10, predicted mischaracterized 62.</desc>
+
+  <rect x="0.5" y="0.5" width="759" height="333" rx="12" fill="#ffffff" stroke="#e1e0d9"/>
+
+  <text x="213" y="40" text-anchor="middle" font-size="16" font-weight="500" fill="#0b0b0b">Prompted baseline</text>
+  <text x="573" y="40" text-anchor="middle" font-size="16" font-weight="500" fill="#0b0b0b">Fine-tuned</text>
+
+  <text x="213" y="70" text-anchor="middle" font-size="12" fill="#898781">Predicted</text>
+  <text x="573" y="70" text-anchor="middle" font-size="12" fill="#898781">Predicted</text>
+
+  <text x="171" y="94" text-anchor="middle" font-size="11.5" fill="#52514e">Accurate</text>
+  <text x="255" y="94" text-anchor="middle" font-size="11.5" fill="#52514e">Mischar.</text>
+  <text x="531" y="94" text-anchor="middle" font-size="11.5" fill="#52514e">Accurate</text>
+  <text x="615" y="94" text-anchor="middle" font-size="11.5" fill="#52514e">Mischar.</text>
+
+  <text x="56" y="187" text-anchor="middle" font-size="12" fill="#898781" transform="rotate(-90 56 187)">Actual</text>
+  <text x="416" y="187" text-anchor="middle" font-size="12" fill="#898781" transform="rotate(-90 416 187)">Actual</text>
+  <text x="122" y="150" text-anchor="end" font-size="11.5" fill="#52514e">Accurate</text>
+  <text x="122" y="234" text-anchor="end" font-size="11.5" fill="#52514e">Mischar.</text>
+  <text x="482" y="150" text-anchor="end" font-size="11.5" fill="#52514e">Accurate</text>
+  <text x="482" y="234" text-anchor="end" font-size="11.5" fill="#52514e">Mischar.</text>
+
+  <rect x="130" y="104" width="82" height="82" rx="3" fill="#85B7EB"/>
+  <rect x="214" y="104" width="82" height="82" rx="3" fill="#378ADD"/>
+  <rect x="130" y="188" width="82" height="82" rx="3" fill="#E6F1FB"/>
+  <rect x="214" y="188" width="82" height="82" rx="3" fill="#0C447C"/>
+  <text x="171" y="152" text-anchor="middle" font-size="22" font-weight="500" fill="#0C447C">31</text>
+  <text x="255" y="152" text-anchor="middle" font-size="22" font-weight="500" fill="#ffffff">38</text>
+  <text x="171" y="236" text-anchor="middle" font-size="22" font-weight="500" fill="#0C447C">2</text>
+  <text x="255" y="236" text-anchor="middle" font-size="22" font-weight="500" fill="#ffffff">70</text>
+
+  <rect x="490" y="104" width="82" height="82" rx="3" fill="#185FA5"/>
+  <rect x="574" y="104" width="82" height="82" rx="3" fill="#B5D4F4"/>
+  <rect x="490" y="188" width="82" height="82" rx="3" fill="#B5D4F4"/>
+  <rect x="574" y="188" width="82" height="82" rx="3" fill="#185FA5"/>
+  <text x="531" y="152" text-anchor="middle" font-size="22" font-weight="500" fill="#ffffff">55</text>
+  <text x="615" y="152" text-anchor="middle" font-size="22" font-weight="500" fill="#0C447C">14</text>
+  <text x="531" y="236" text-anchor="middle" font-size="22" font-weight="500" fill="#0C447C">10</text>
+  <text x="615" y="236" text-anchor="middle" font-size="22" font-weight="500" fill="#ffffff">62</text>
+
+  <text x="40" y="312" font-size="11.5" fill="#898781">Rows = actual, columns = predicted; diagonal = correct. n = 141 classified (48 abstentions excluded). Cell shade is proportional to count.</text>
+</svg>
