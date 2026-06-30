@@ -68,6 +68,10 @@ flowchart TB
 
 **Training/Evaluation Data:** 6,894 examples sourced from 3,447 entries from the CaseHOLD dataset. For each entry, one "Accurate" example is created using the correct holding, and one "Mischaracterized" example is created by randomly choosing one of the incorrect holdings (each CaseHOLD entry is in multiple choice format). The examples are split 85/15 between the training and evaluation sets. Each pair derived from a CaseHOLD entry is assigned to one set; pairs are never split between the training and evaluation sets.
 
+**Test Data:** 189 examples sourced from real-world briefs. For this, I used Damien Charlotin's database of AI hallucination cases. I compiled 104 examples of mischaracterizations, manually verifying and annotating each one. I then reviewed the filings available in Charlotin's database and pulled 85 accurate citations from those filings (manually verifying their accuracy by reviewing each claim against the text of the cited case).
+
+**Temporal Split:** One concern is that the model may have memorized older cases during pretraining. To try to mitigate this, when building my test set I primarily focused on the most recent examples in Charlotin's database, resulting in a test set with examples that are largely from the second half of 2025 and first half of 2026 and thus less likely to be contained in model pretraining data.
+
 ## Future Work/Improvements
 
 - Compare fine-tuned Gemma 3 12B to Gemma 3 4B, Gemma 3 27B, and Gemini 3.1 Pro.
