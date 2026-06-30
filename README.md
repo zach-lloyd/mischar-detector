@@ -76,8 +76,6 @@ flowchart TB
 
 ## Results
 
-## Results
-
 The precision, recall, and F1 of each model was as follows:
 
 | Metric | Prompted baseline | Fine-tuned |
@@ -95,6 +93,16 @@ The precision, recall, and F1 of each model was as follows:
 The improvement comes mainly from recall on the accurate class (0.45 → 0.80): the prompted baseline tends to default to "mischaracterized" and misses more than half the genuinely accurate citations, while fine-tuning rebalances the model without giving up much on the mischaracterized class. The below confusion matrix illustrates that:
 
 ![Confusion matrices: prompted baseline vs. fine-tuned](assets/confusion-matrices.svg)
+
+## Limitations
+
+1. The size of the test set is currently small. Only 189 total examples, and with the 48 abstentions, it shrinks to 141. Because of this, the results are promising but not definitive. I'd like to expand the size of the test set in the future to strengthen the result.
+
+2. As noted above, the pipeline was unable to resolve 48 cited cases from the test dataset. In the future, those examples should be reviewed to see if anything can be done to fix these errors in resolution.
+
+3. The fine-tuned classifier performed better overall, but it did produce more false negatives (a prediction of "Accurate" when the correct answer was "Mischaracterized") than the baseline model. Given how damaging an unidentified mischaracterization in a legal brief can be, this raises a meaningful tradeoff for lawyers to consider when choosing models: should we prefer superior overall accuracy or stronger protection against false negatives?
+
+4. This project was limited to mischaracterizations of case law. Issues around other types of mischaracterizations, like mischaracterizations of statutes, rules, regulations, and opposing counsel's filings were not addressed.
 
 ## Future Work/Improvements
 
