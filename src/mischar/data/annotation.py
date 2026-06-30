@@ -51,12 +51,11 @@ class AnnotationRecord(BaseModel):
     Schema for a single annotation in the real_briefs.jsonl file.
 
     Validated at write time via pydantic. Required fields are enforced
-    and the label must be one of the four valid values.
+    and the label must be either `accurate` or `mischaracterized`.
     """
 
     annotation_id: str
     annotated_at: str
-    time_spent_minutes: int | None = None
     annotator: str
 
     source: AnnotationSourceInfo
@@ -73,7 +72,7 @@ class AnnotationRecord(BaseModel):
     @classmethod
     def validate_label(cls, v: str) -> str:
         """
-        Ensure the label is one of the four valid classification labels.
+        Ensure the label is either `accurate` or `mischaracterized`.
 
         Args:
             v: The label value to validate.
@@ -82,7 +81,7 @@ class AnnotationRecord(BaseModel):
             The validated label.
 
         Raises:
-            ValueError: If the label is not one of the four valid values.
+            ValueError: If the label is not either `accurate` or `mischaracterized`.
         """
         valid = set(Label.values())
         if v not in valid:
@@ -182,7 +181,6 @@ def create_annotation(
     gold_claim: str | None = None,
     annotator_notes: str | None = None,
     boundary_case: bool = False,
-    time_spent_minutes: int | None = None,
 ) -> AnnotationRecord:
     """
     Create a new annotation record with auto-generated ID and timestamp.
@@ -194,7 +192,7 @@ def create_annotation(
     Args:
         passage: The full passage text from the brief.
         citation_text_in_passage: The specific citation string.
-        label: One of the four valid classification labels.
+        label: Either ``accurate`` or ``mischaracterized``.
         source_info: Dict with keys ``recap_docket_id``, ``court``,
             ``filing_date``, ``document_url``.
         cited_case_info: Dict with keys ``courtlistener_id``,
@@ -203,7 +201,6 @@ def create_annotation(
         gold_claim: The human-judged claim, if provided.
         annotator_notes: Free-text notes about the annotation.
         boundary_case: Whether this is a boundary/ambiguous case.
-        time_spent_minutes: How long the annotation took.
 
     Returns:
         A validated ``AnnotationRecord``.
@@ -214,7 +211,6 @@ def create_annotation(
     return AnnotationRecord(
         annotation_id=str(uuid4()),
         annotated_at=datetime.now(UTC).isoformat(),
-        time_spent_minutes=time_spent_minutes,
         annotator=annotator,
         source=AnnotationSourceInfo(**source_info),
         passage=passage,

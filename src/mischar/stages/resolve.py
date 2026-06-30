@@ -39,7 +39,6 @@ class CourtListenerAPIError(Exception):
 
     Distinct from a "not found" result, which is a normal pipeline outcome.
     """
-
     pass
 
 
