@@ -68,13 +68,35 @@ flowchart TB
 
 **Training/Evaluation Data:** 6,894 examples sourced from 3,447 entries from the CaseHOLD dataset. For each entry, one "Accurate" example is created using the correct holding, and one "Mischaracterized" example is created by randomly choosing one of the incorrect holdings (each CaseHOLD entry is in multiple choice format). The examples are split 85/15 between the training and evaluation sets. Each pair derived from a CaseHOLD entry is assigned to one set; pairs are never split between the training and evaluation sets.
 
-**Test Data:** 189 examples sourced from real-world briefs. For this, I used Damien Charlotin's database of AI hallucination cases. I compiled 104 examples of mischaracterizations, manually verifying and annotating each one. I then reviewed the filings available in Charlotin's database and pulled 85 accurate citations from those filings (manually verifying their accuracy by reviewing each claim against the text of the cited case).
+**Retrieval Scoring:** Chunk relevance is measured using cosine similarity. build_training_data.py includes the option to specify a minimum similarity score for "Accurate" examples. If the best similarity score for a given "Accurate" example is less than the specified minimum, that CaseHOLD pair is dropped. When I built my training and evaluation datasets, I used a minimum retrieval score of 0.30, to avoid including "Accurate" examples where it was unlikely that the claim was supported by the retrieved chunks.
+
+**Test Data:** 189 examples sourced from real-world briefs. For this, I used Damien Charlotin's database of AI hallucination cases. I filtered by US cases with at least one identified instance of misrepresented case law. From those results, I compiled 104 examples of mischaracterizations, manually verifying and annotating each one. I then reviewed the filings available in Charlotin's database and pulled 85 accurate citations from those filings (manually verifying their accuracy by reviewing each claim against the text of the cited case). The pipeline automatically dropped 48 of the test examples because it was unable to resolve the case citations via CourtListener, so the models were actually tested on 141 real-world examples: 72 "Mischaracterized" and 69 "Accurate".
 
 **Temporal Split:** One concern is that the model may have memorized older cases during pretraining. To try to mitigate this, when building my test set I primarily focused on the most recent examples in Charlotin's database, resulting in a test set with examples that are largely from the second half of 2025 and first half of 2026 and thus less likely to be contained in model pretraining data.
 
+## Results
+
+## Results
+
+The precision, recall, and F1 of each model was as follows:
+
+| Metric | Prompted baseline | Fine-tuned |
+| :--- | :---: | :---: |
+| **Macro F1** | **0.69** | **0.83** |
+| Accurate — precision | 0.94 | 0.85 |
+| Accurate — recall | 0.45 | 0.80 |
+| Accurate — F1 | 0.61 | 0.82 |
+| Mischaracterized — precision | 0.65 | 0.82 |
+| Mischaracterized — recall | 0.97 | 0.86 |
+| Mischaracterized — F1 | 0.78 | 0.84 |
+
+*n = 141 classified of 189 (25.4% abstention, identical for both models since it happens upstream of the classifier). Baseline = Gemma 3 12B prompted; fine-tuned = the same base model with the QLoRA adapter. Macro F1 weights both classes equally regardless of support.*
+
+The improvement comes mainly from recall on the accurate class (0.45 → 0.80): the prompted baseline tends to default to "mischaracterized" and misses more than half the genuinely accurate citations, while fine-tuning rebalances the model without giving up much on the mischaracterized class.
+
 ## Future Work/Improvements
 
-- Compare fine-tuned Gemma 3 12B to Gemma 3 4B, Gemma 3 27B, and Gemini 3.1 Pro.
+- Compare fine-tuned Gemma 3 12B to Gemma 3 4B, Gemma 3 27B, and Gemini 3.1 Pro. I've already written much of the code for fine-tuning Gemma 3 27B.
 - Replace Gemma 3 models with the newly-released Gemma 4 models to see whether the result still holds.
 - Analyze and revise real brief test set to reduce abstention rate.
 - Expand size fo real brief test set for more robust performance analysis.
