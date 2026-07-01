@@ -149,6 +149,78 @@ The improvement comes mainly from recall on the accurate class (0.45 → 0.80): 
 - PyYAML, python-dotenv, structlog
 - Ruff (lint), pytest + pytest-mock/cov, pre-commit, Hatch (build backend)
 
+## Setup & Reproduce
+
+### Prerequisites
+
+- Python 3.11+
+- Accounts / API keys:
+  - **CourtListener** API key (a free EDU membership lifts the rate limit to 1k requests per hour) — case resolution
+  - **Voyage AI** API key — legal embeddings (`voyage-law-2`)
+  - **Gemini** API key — required by config loading even though the build doesn't currently call  it; can be used for benchmarking vs a frontier model if desired
+  - **HuggingFace** token with the **Gemma license accepted** (`google/gemma-3-12b-it` is gated)
+  - **Modal** account (`modal token new`) with a `huggingface-secret` configured in your workspace
+- **Ollama** installed with `gemma3:27b` pulled — powers the attribution stage of the full pipeline
+
+### Install
+
+```bash
+git clone https://github.com/zach-lloyd/mischar-detector.git
+cd mischar-detector
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[local,training,dev]"
+```
+
+### Configure
+
+```bash
+cp src/mischar/config.example.yaml src/mischar/config.yaml
+cp src/mischar/env.example .env      # then fill in your API keys
+```
+
+Set `COURTLISTENER_API_KEY`, `VOYAGE_API_KEY`, and `GEMINI_API_KEY` in `.env`, authenticate Modal (`modal token new`), and create the `huggingface-secret` in your Modal dashboard.
+
+### Reproduce the pipeline
+
+```bash
+# 1. Build the CaseHOLD accurate/mischaracterized pair set (HuggingFace download; no API keys)
+python -m mischar.scripts.data_construction.build_casehold_set \
+    --output data/processed/casehold.jsonl --max-entries 5000 (increase max-entries if you want to pull more entries from CaseHOLD to create larger training/eval sets)
+
+# 2. Build training data: resolve -> retrieve -> label -> train/val JSONL
+#    (~10-12 h, rate-limited by CourtListener; cached and resumable)
+python -m mischar.scripts.training.build_training_data \
+    --source data/processed/casehold.jsonl \
+    --output-dir data/training \
+    --config src/mischar/config.yaml \
+    --min-retrieval-score 0.30
+
+# 3. Upload the training data to the Modal volume
+modal volume put mischar-training-data data/training/train.jsonl train.jsonl --force
+modal volume put mischar-training-data data/training/val.jsonl val.jsonl --force
+
+# 4. Fine-tune Gemma 3 12B with QLoRA on Modal (~9 h on one H100)
+modal run src/mischar/scripts/training/train_secondary.py
+
+# 5. Deploy the inference server
+modal deploy src/mischar/scripts/inference/serve_adapter.py
+
+# 6. Evaluate the prompted baseline vs. the fine-tuned model on the held-out real briefs
+python -m mischar.scripts.eval.run_eval \
+    --dataset data/processed/annotated/real_briefs.jsonl \
+    --source real_brief \
+    --models gemma12b-prompted-modal,gemma12b-tuned \
+    --config src/mischar/config.yaml
+```
+
+### Cost & time
+
+- **Data build:** ~10–12 h wall-clock (CourtListener rate limit), but essentially free — CourtListener EDU tier + Voyage free-token tier — and fully resumable via the local cache.
+- **Fine-tune (12B):** ~9 h on one Modal H100, roughly $35–40.
+- **Evaluation:** a few dollars of Modal GPU time.
+
+Note that I have not performed a run with 27B or the Gemini API yet, so not sure how much more expensive those would be.
+
 ## Directory Structure
 
 ```
