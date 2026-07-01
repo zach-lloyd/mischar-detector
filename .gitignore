@@ -227,4 +227,6 @@ artifacts/
 eval_runs/data/training/
 data/training/train.jsonl
 data/training/
+data/train.jsonl
+data/val.jsonl
 .DS_Store
