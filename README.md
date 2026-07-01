@@ -294,5 +294,16 @@ config.yaml, .env, cache/, and generated data/training/*.jsonl are gitignored an
 - Replace Gemma 3 models with the newly-released Gemma 4 models to see whether the result still holds.
 - Analyze and revise real brief test set to reduce abstention rate.
 - Expand size fo real brief test set for more robust performance analysis.
-  
 
+## Disclaimer
+
+This tool is a research prototype for studying legal citation characterization. It is not a legal tool, does not provide legal advice, and should not be used as a substitute for professional legal analysis. Its outputs have not been validated for use in any legal proceeding. The author makes no warranty as to the accuracy or reliability of any classification produced.
+
+## License and Attribution
+
+This project is subject to an MIT License, provided that:
+
+1. Use of Gemma is governed by Google's Gemma Terms of Use.
+2. Use of the CaseHOLD dataset (which can be accessed on Hugging Face [here](https://huggingface.co/datasets/casehold/casehold)) is subject to a Creative Commons Attribution 4.0 International License (CC BY 4.0).
+3. Similarly, use of Damien Charlotin's legal hallucination database (which can be accessed [here](https://www.damiencharlotin.com/hallucinations/) and also via Hugging Face) is subject to a CC BY 4.0 license. The underlying briefs are public domain U.S. court documents.
+4. Use of CourtListener data is governed by CourtListener's terms and conditions.
