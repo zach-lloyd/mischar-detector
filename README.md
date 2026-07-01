@@ -149,6 +149,71 @@ The improvement comes mainly from recall on the accurate class (0.45 → 0.80): 
 - PyYAML, python-dotenv, structlog
 - Ruff (lint), pytest + pytest-mock/cov, pre-commit, Hatch (build backend)
 
+## Directory Structure
+
+mischar-detector/
+├── src/mischar/
+│   ├── pipeline.py               # orchestrates the five-stage pipeline
+│   ├── cli.py                    # CLI entrypoint + backend wiring
+│   ├── config.py                 # typed config schema (Pydantic)
+│   ├── config.example.yaml       # config template (copy to config.yaml)
+│   ├── types.py                  # shared dataclasses
+│   ├── constants.py              # labels, defaults, prompt versions
+│   ├── cache.py                  # content-addressed disk cache (resolutions, embeddings)
+│   ├── logging.py                # structlog setup
+│   │
+│   ├── stages/                   # the five pipeline stages, in order
+│   │   ├── parse.py              #  1. parse citation (eyecite)
+│   │   ├── resolve.py            #  2. resolve case + fetch opinion (CourtListener)
+│   │   ├── retrieve.py           #  3. chunk, embed, top-k retrieval (Voyage)
+│   │   ├── attribute.py          #  4. extract the claim (Gemma 3 27B via Ollama)
+│   │   └── classify.py           #  5. accurate vs. mischaracterized (fine-tuned 12B)
+│   │
+│   ├── models/                   # model backend clients
+│   │   ├── client.py             # ModelClient protocol + retry/JSON helpers
+│   │   ├── embedding.py          # Voyage embeddings client
+│   │   ├── modal_inference.py    # Modal-served adapter client
+│   │   ├── ollama.py             # local Ollama backend
+│   │   ├── mlx.py                # local Apple-Silicon (MLX) backend
+│   │   └── gemini.py             # Gemini API backend
+│   │
+│   ├── prompts/                  # versioned prompt templates
+│   │   ├── attribution.py
+│   │   └── classification.py
+│   │
+│   ├── data/                     # dataset loading + splitting
+│   │   ├── datasets.py           # load CaseHOLD / real-brief sets
+│   │   ├── splits.py             # leakage-safe train/val split
+│   │   └── annotation.py         # real-brief annotation schema
+│   │
+│   ├── eval/                     # evaluation harness
+│   │   ├── harness.py            # run the pipeline over a dataset
+│   │   ├── metrics.py            # macro-F1, P/R/F1, confusion matrix (scikit-learn)
+│   │   └── report.py             # summary.md / metrics.json / reproducibility manifest
+│   │
+│   └── scripts/                  # runnable entrypoints
+│       ├── data_construction/
+│       │   └── build_casehold_set.py    # build accurate/mischaracterized pairs
+│       ├── training/
+│       │   ├── build_training_data.py   # resolve + retrieve + label → train/val JSONL
+│       │   ├── train_secondary.py       # QLoRA fine-tune Gemma 3 12B (Modal)
+│       │   └── train_primary.py         # QLoRA fine-tune Gemma 3 27B (Modal)
+│       ├── inference/
+│       │   └── serve_adapter.py         # Modal inference server (base + adapter)
+│       └── eval/
+│           └── run_eval.py              # baseline vs. fine-tuned evaluation
+│
+├── data/
+│   └── processed/annotated/
+│       └── real_briefs.jsonl     # 189-example hand-annotated held-out test set
+├── assets/                       # README figures (chart, confusion matrices, diagram)
+├── eval_runs/                    # timestamped eval outputs
+├── docs/                         # annotation guide
+├── pyproject.toml
+└── README.md
+
+config.yaml, .env, cache/, and generated data/training/*.jsonl are gitignored and created locally.
+
 ## Future Work/Improvements
 
 - Compare fine-tuned Gemma 3 12B to Gemma 3 4B, Gemma 3 27B, and Gemini 3.1 Pro. I've already written much of the code for fine-tuning Gemma 3 27B.
