@@ -104,6 +104,51 @@ The improvement comes mainly from recall on the accurate class (0.45 → 0.80): 
 
 4. This project was limited to mischaracterizations of case law. Issues around other types of mischaracterizations, like mischaracterizations of statutes, rules, regulations, and opposing counsel's filings were not addressed.
 
+## Tech Stack
+
+**Language & Runtime**
+
+- Python 3.11+
+
+**Models & Fine-Tuning**
+
+- Gemma 3 12B (google/gemma-3-12b-it) — base + fine-tuned classifier (27B also supported)
+- Gemma 3 27B (gemma3:27b via Ollama) — prompted attribution model (used for the attribution stage but can also be used in place of 12B for base/fine-tuned classifier)
+- Ollama — local model runtime serving the 27B attribution model
+- PyTorch, HuggingFace Transformers
+- PEFT — QLoRA / LoRA adapters
+- bitsandbytes — 4-bit NF4 quantization
+- TRL (SFTTrainer) — supervised fine-tuning
+- Accelerate
+
+**Compute & Serving**
+
+- Modal — serverless H100 GPUs for both training and inference serving (MLX also supported)
+
+**Retrieval (RAG)**
+
+- Voyage AI voyage-law-2 — legal-domain embeddings
+- NumPy — cosine-similarity retrieval
+- diskcache — content-addressed caching of resolutions and embeddings (what made your re-runs cheap)
+
+**Legal Data & Citation Tooling**
+
+- CaseHOLD — training-data source (via HuggingFace datasets)
+- CourtListener REST API v4 — case resolution and opinion text
+- eyecite — legal citation parsing
+- httpx — API client
+
+**Evaluation**
+
+- scikit-learn — classification metrics
+- Custom eval harness — macro-F1, confusion matrix, abstention tracking, reproducibility manifest
+
+**Config & Engineering**
+
+- Pydantic — typed config with validation
+- PyYAML, python-dotenv, structlog
+- Ruff (lint), pytest + pytest-mock/cov, pre-commit, Hatch (build backend)
+
 ## Future Work/Improvements
 
 - Compare fine-tuned Gemma 3 12B to Gemma 3 4B, Gemma 3 27B, and Gemini 3.1 Pro. I've already written much of the code for fine-tuning Gemma 3 27B.
