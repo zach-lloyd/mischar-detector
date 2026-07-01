@@ -221,8 +221,10 @@ __marimo__/
 config.yaml
 cache/
 data/raw/
-data/processed/
+data/processed/casehold.jsonl
+data/processed/casehold-sample.jsonl
 artifacts/
 eval_runs/data/training/
 data/training/train.jsonl
 data/training/
+.DS_Store
