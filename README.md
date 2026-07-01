@@ -151,6 +151,7 @@ The improvement comes mainly from recall on the accurate class (0.45 → 0.80): 
 
 ## Directory Structure
 
+```
 mischar-detector/
 ├── src/mischar/
 │   ├── pipeline.py               # orchestrates the five-stage pipeline
@@ -211,6 +212,7 @@ mischar-detector/
 ├── docs/                         # annotation guide
 ├── pyproject.toml
 └── README.md
+```
 
 config.yaml, .env, cache/, and generated data/training/*.jsonl are gitignored and created locally.
 
