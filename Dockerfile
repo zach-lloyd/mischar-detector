@@ -6,5 +6,5 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends g++ && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml ./
 COPY src/ ./src/
-RUN pip install --no-cache-dir . datasets
+RUN pip install --no-cache-dir . datasets voyageai google-genai
 CMD ["mischar", "--help"]
