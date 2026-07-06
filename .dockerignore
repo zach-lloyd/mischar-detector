@@ -1,0 +1,11 @@
+.git              
+.venv
+cache/ 
+data/
+eval_runs/
+__pycache__/      
+.ruff_cache/
+.DS_Store  
+# the safety-critical one: secrets must never enter an image       
+**/.env 
+Dockerfile        

@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    image: mischar-detector
+    env_file: src/mischar/.env
+    volumes:
+      - ./cache:/app/cache
+      - ./data:/app/data
