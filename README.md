@@ -175,7 +175,7 @@ pip install -e ".[local,training,dev]"
 
 ```bash
 cp src/mischar/config.example.yaml src/mischar/config.yaml
-cp src/mischar/env.example .env      # then fill in your API keys
+cp src/mischar/env.example src/mischar/.env      # then fill in your API keys
 ```
 
 Set `COURTLISTENER_API_KEY`, `VOYAGE_API_KEY`, and `GEMINI_API_KEY` in `.env`, authenticate Modal (`modal token new`), and create the `huggingface-secret` in your Modal dashboard.
@@ -183,30 +183,36 @@ Set `COURTLISTENER_API_KEY`, `VOYAGE_API_KEY`, and `GEMINI_API_KEY` in `.env`, a
 ### Reproduce the pipeline
 
 ```bash
-# 1. Build the CaseHOLD accurate/mischaracterized pair set (HuggingFace download; no API keys)
-python -m mischar.scripts.data_construction.build_casehold_set \
-    --output data/processed/casehold.jsonl --max-entries 5000 (increase max-entries if you want to pull more entries from CaseHOLD to create larger training/eval sets)
+# 1. Build the docker container
+docker compose build
 
-# 2. Build training data: resolve -> retrieve -> label -> train/val JSONL
+# 2. Build the CaseHOLD accurate/mischaracterized pair set (HuggingFace download; no API keys;
+#    increase max-entries if you want to pull more entries from CaseHOLD to create larger
+#    training/eval sets)
+docker compose run --rm app python -m mischar.scripts.data_construction.build_casehold_set \
+  --output data/processed/casehold.jsonl --max-entries 5000
+
+# 3. Build training data: resolve -> retrieve -> label -> train/val JSONL
 #    (~10-12 h, rate-limited by CourtListener; cached and resumable)
-python -m mischar.scripts.training.build_training_data \
-    --source data/processed/casehold.jsonl \
-    --output-dir data/training \
-    --config src/mischar/config.yaml \
-    --min-retrieval-score 0.30
+docker compose run --rm app python -m mischar.scripts.training.build_training_data \
+  --source data/processed/casehold.jsonl \
+  --output-dir data/training \
+  --config src/mischar/config.yaml \
+  --min-retrieval-score 0.30
 
-# 3. Upload the training data to the Modal volume
+# NOTE: Steps 4-6 run on the host, not in Docker
+# 4. Upload the training data to the Modal volume
 modal volume put mischar-training-data data/training/train.jsonl train.jsonl --force
 modal volume put mischar-training-data data/training/val.jsonl val.jsonl --force
 
-# 4. Fine-tune Gemma 3 12B with QLoRA on Modal (~9 h on one H100)
+# 5. Fine-tune Gemma 3 12B with QLoRA on Modal (~9 h on one H100)
 modal run src/mischar/scripts/training/train_secondary.py
 
-# 5. Deploy the inference server
+# 6. Deploy the inference server
 modal deploy src/mischar/scripts/inference/serve_adapter.py
 
-# 6. Evaluate the prompted baseline vs. the fine-tuned model on the held-out real briefs
-python -m mischar.scripts.eval.run_eval \
+# 7. Evaluate the prompted baseline vs. the fine-tuned model on the held-out real briefs
+docker compose run --rm app python -m mischar.scripts.eval.run_eval \
     --dataset data/processed/annotated/real_briefs.jsonl \
     --source real_brief \
     --models gemma12b-prompted-modal,gemma12b-tuned \
