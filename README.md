@@ -183,15 +183,15 @@ Set `COURTLISTENER_API_KEY`, `VOYAGE_API_KEY`, and `GEMINI_API_KEY` in `.env`, a
 ### Get the image
 
 **Option A — pull the prebuilt image (fastest and most exact reproduction; source builds resolve current package versions rather than the versions used during my initial run):**
-​```bash
+```bash
 docker pull public.ecr.aws/z0m7g0z8/mischar-detector:0.1.0
 docker tag public.ecr.aws/z0m7g0z8/mischar-detector:0.1.0 mischar-detector
-​```
+```
 
 **Option B — build from source:**
-​```bash
+```bash
 docker compose build
-​```
+```
 
 ### Reproduce the pipeline
 
@@ -210,7 +210,7 @@ docker compose run --rm app python -m mischar.scripts.training.build_training_da
   --config src/mischar/config.yaml \
   --min-retrieval-score 0.30
 
-# NOTE: Steps 4-6 run on the host, not in Docker
+# NOTE: Steps 3-5 run on the host, not in Docker
 # 3. Upload the training data to the Modal volume
 modal volume put mischar-training-data data/training/train.jsonl train.jsonl --force
 modal volume put mischar-training-data data/training/val.jsonl val.jsonl --force
